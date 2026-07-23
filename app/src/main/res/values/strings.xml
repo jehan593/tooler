@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Tooler</string>
+    <string name="tile_screenshot">Screenshot</string>
+    <string name="tile_keep_screen_on">Keep Screen On</string>
+    <string name="tile_volume_mode">Volume Mode</string>
+    <string name="tile_battery_charge">Battery Charge Optimization</string>
+    <string name="accessibility_service_description">Lets the Screenshot Quick Settings tile trigger a screenshot and the Lock Screen shortcut lock the device. Tooler does not read screen content — this service is used solely to invoke the system\'s take-screenshot and lock-screen actions.</string>
+    <string name="lock_screen_shortcut_label">Lock Screen</string>
+    <string name="lock_screen_shortcut_setup_needed">Enable Tooler\'s accessibility service to lock the screen from this shortcut</string>
+</resources>

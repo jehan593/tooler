@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Compose draws the app's real UI (see ToolerTheme); this XML theme is only what the manifest
+        needs before the first Compose frame, following the Nord Polar Night background.
+    -->
+    <style name="Theme.Tooler" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/ic_launcher_background</item>
+        <item name="android:statusBarColor">@color/ic_launcher_background</item>
+    </style>
+</resources>
