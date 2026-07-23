@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Keep Screen On: holds a PowerManager wake lock from a foreground service. Both are normal
+         (auto-granted) permissions — no runtime dialog. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- Runtime-requested (Android 13+) right before starting the Keep Screen On service, so its
+         ongoing notification actually shows — see MainActivity.requestNotificationPermissionThenStart. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Volume Mode: required just to make Tooler show up at all in Settings' Do Not Disturb
+         access list — without declaring this, the app is invisible on that screen and
+         setRingerMode(RINGER_MODE_SILENT) fails silently no matter what the tile does. It's a
+         normal permission (no runtime dialog); the actual grant happens through the DND access
+         screen this makes Tooler eligible to appear on. -->
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+
+    <!-- Backs an opt-in "exclude from battery optimization" button in MainActivity only — never
+         requested silently (see ownscreen's CLAUDE.md for the same pattern). The single biggest
+         cause of a QS tile "taking a moment" on the first tap after a while is Android having
+         killed the app's process for memory, forcing a fresh process spin-up before onClick() can
+         even run; every third-party tile app hits this, not just this one. Being exempted from
+         battery optimization makes the OS kill this process far less eagerly. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <!-- Battery Charge Optimization: writes two undocumented Settings.Secure ints (see
+         tiles/ChargeOptimization.kt) with no Settings screen able to grant it — the user runs
+         `adb shell pm grant com.tooler.app android.permission.WRITE_SECURE_SETTINGS` once, from a
+         computer, per the Battery Charge Optimization card in MainActivity. tools:ignore silences
+         the "protected permission" lint warning; declaring it here is required either way for
+         `pm grant` to have something to grant. -->
+    <uses-permission
+        android:name="android.permission.WRITE_SECURE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Tooler">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Tooler">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Quick Settings tiles: android:permission=BIND_QUICK_SETTINGS_TILE is what makes these
+             safe to export — only System UI holds that permission, so nothing else can bind them.
+             TOGGLEABLE_TILE tells System UI this tile's tap is a toggle, so it animates the
+             press/state change immediately in its own process instead of waiting on a Binder
+             round-trip to ours before showing any feedback — shaves the visible response time
+             down to just whatever System UI itself takes, independent of our process's state. -->
+
+        <service
+            android:name=".tiles.ScreenshotTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_screenshot"
+            android:label="@string/tile_screenshot"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
+
+        <service
+            android:name=".tiles.KeepScreenOnTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_keep_screen_on"
+            android:label="@string/tile_keep_screen_on"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
+
+        <service
+            android:name=".tiles.VolumeModeTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_volume_normal"
+            android:label="@string/tile_volume_mode"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
+
+        <service
+            android:name=".tiles.BatteryChargeTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_battery_off"
+            android:label="@string/tile_battery_charge"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
+
+        <!-- Bound only by the system (BIND_ACCESSIBILITY_SERVICE is a signature-ish permission no
+             other app holds) — exists solely so ScreenshotTileService has a caller that's allowed
+             to invoke performGlobalAction(GLOBAL_ACTION_TAKE_SCREENSHOT). See its class doc. -->
+        <service
+            android:name=".tiles.ScreenshotAccessibilityService"
+            android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+
+        <service
+            android:name=".tiles.KeepAwakeService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Holds the screen on while the user has the Keep Screen On tile toggled active" />
+        </service>
+
+        <!-- Manifest-registered (not dynamic) so the volume tile refreshes even while the app
+             process isn't otherwise running — see RingerModeChangeReceiver's class doc. -->
+        <receiver
+            android:name=".tiles.RingerModeChangeReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.media.RINGER_MODE_CHANGED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Home-screen launcher shortcut (not an AppWidget) — see LockScreenShortcutActivity's
+             class doc. Theme.NoDisplay + exported so the launcher's shortcut/widget picker can
+             both create the pinned icon (CREATE_SHORTCUT) and, later, invoke it (ACTION_VIEW via
+             the pinned icon's own stored intent) without this activity ever drawing a frame. -->
+        <activity
+            android:name=".shortcuts.LockScreenShortcutActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:icon="@mipmap/ic_lock_screen_shortcut"
+            android:label="@string/lock_screen_shortcut_label"
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.intent.action.CREATE_SHORTCUT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+    </application>
+
+</manifest>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Three tiles in a row (the app's namesake), kept within the ~66dp adaptive-icon safe zone -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#88C0D0"
+        android:pathData="
+            M28,46 L38,46 L41,49 L41,59 L38,62 L28,62 L25,59 L25,49 Z
+            M49,46 L59,46 L62,49 L62,59 L59,62 L49,62 L46,59 L46,49 Z
+            M70,46 L80,46 L83,49 L83,59 L80,62 L70,62 L67,59 L67,49 Z" />
+</vector>

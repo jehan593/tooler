@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status-bar notification icon: only the alpha channel is ever rendered by the system, so fill
+     color is arbitrary — kept white by convention. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="
+            M12,7 a5,5 0 1,1 -0.01,0 Z
+            M11,1 L13,1 L13,4 L11,4 Z
+            M11,20 L13,20 L13,23 L11,23 Z
+            M1,11 L4,11 L4,13 L1,13 Z
+            M20,11 L23,11 L23,13 L20,13 Z" />
+</vector>

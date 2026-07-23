@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Deliberately minimal: no event types, no window-content access, no gesture capability. The
+    service exists only to call performGlobalAction — GLOBAL_ACTION_TAKE_SCREENSHOT for the
+    Screenshot tile, GLOBAL_ACTION_LOCK_SCREEN for the lock-screen widget — both of which need
+    nothing beyond the service being bound.
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeNotificationStateChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:canRetrieveWindowContent="false"
+    android:notificationTimeout="100"
+    android:description="@string/accessibility_service_description" />

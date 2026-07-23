@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Real adaptive icon (background + foreground layers), same structure as ic_launcher.xml —
+     unlike a flat layer-list drawable, this is what tells Android/the launcher exactly how to mask
+     and layer the icon, so it doesn't fall back to legacy-icon auto-adaptation (which is what
+     produced the doubled/badged look a flat drawable version of this shortcut icon had). -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_lock_screen_foreground" />
+</adaptive-icon>
