@@ -60,19 +60,22 @@ private object ChargingModePrefs {
 fun lastKnownChargingMode(context: Context): ChargingMode = ChargingModePrefs.read(context)
 
 /**
- * Advances Off -> Adaptive Charging -> Limit to 80% -> Off, writing the two keys in the exact
- * per-transition order [TebbeUbben/ChargeQuickTile](https://github.com/TebbeUbben/ChargeQuickTile)
- * uses, then records the new mode locally (see the class doc above — this is the only way this
- * tile can know what to cycle to next, since reading the keys back is blocked for a normal app).
- * Returns false instead of throwing if `WRITE_SECURE_SETTINGS` isn't actually granted; callers
- * check [com.tooler.app.util.hasWriteSecureSettings] first, this is just the last line of defense.
+ * Toggles Adaptive Charging <-> Limit to 80%, writing the two keys in the exact per-transition
+ * order [TebbeUbben/ChargeQuickTile](https://github.com/TebbeUbben/ChargeQuickTile) uses, then
+ * records the new mode locally (see the class doc above — this is the only way this tile can know
+ * what to cycle to next, since reading the keys back is blocked for a normal app). `OFF` is only
+ * ever the pre-first-tap default (`ChargingModePrefs` has never been written) — deliberately not a
+ * reachable step in this cycle, so the tile never turns optimization off on its own; from `OFF`
+ * the first tap moves to `ADAPTIVE`, same as everywhere else `OFF` shows up. Returns false instead
+ * of throwing if `WRITE_SECURE_SETTINGS` isn't actually granted; callers check
+ * [com.tooler.app.util.hasWriteSecureSettings] first, this is just the last line of defense.
  */
 fun advanceChargingMode(context: Context): Boolean {
     val contentResolver: ContentResolver = context.contentResolver
     val next = when (ChargingModePrefs.read(context)) {
         ChargingMode.OFF -> ChargingMode.ADAPTIVE
         ChargingMode.ADAPTIVE -> ChargingMode.LIMIT_80
-        ChargingMode.LIMIT_80 -> ChargingMode.OFF
+        ChargingMode.LIMIT_80 -> ChargingMode.ADAPTIVE
     }
     return try {
         when (next) {

@@ -4,6 +4,7 @@ import android.content.Intent
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import androidx.core.content.ContextCompat
+import com.tooler.app.util.setSubtitleCompat
 
 class KeepScreenOnTileService : TileService() {
 
@@ -32,7 +33,7 @@ class KeepScreenOnTileService : TileService() {
     private fun applyState(on: Boolean) {
         qsTile?.apply {
             state = if (on) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
-            subtitle = if (on) "On" else "Off"
+            setSubtitleCompat(if (on) "On" else "Off")
             updateTile()
         }
     }
