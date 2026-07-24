@@ -9,10 +9,11 @@ leave out — none of them require root. Nord color palette, Martian Mono Nerd F
 UI (matches ownscreen/noter/linker's visual identity — see sibling repos at `../ownscreen`,
 `../noter`, `../linker`). Package `com.tooler.app`, minSdk 28.
 
-Currently ships four tiles: **Screenshot**, **Keep Screen On**, **Volume Mode** (cycles
-Normal/Vibrate/Silent), **Battery Charge Optimization** (cycles Off/Adaptive Charging/Limit to
-80%), plus one home-screen launcher shortcut: **Lock Screen** (no AppWidget — see Shortcuts below
-for why).
+Currently ships five tiles: **Screenshot**, **Keep Screen On**, **Volume Mode** (cycles
+Normal/Vibrate/Silent), **Battery Charge Optimization** (toggles Adaptive Charging/Limit to 80% —
+deliberately no Off step), **Private DNS** (toggles Automatic/a hostname you've already set —
+deliberately no Off step either), plus one home-screen launcher shortcut: **Lock Screen** (no
+AppWidget — see Shortcuts below for why).
 
 **No persisted state anywhere**, with one deliberate, OS-forced exception. Every tile reads live
 system state (`AudioManager`, `PowerManager`, `AccessibilityManager`) on every click instead of
@@ -59,6 +60,12 @@ reading the live value back is flatly impossible for a normal app here, not a de
 the other two work, the whole app's floor is set there. If a future tile needs to support older
 devices, gate it explicitly with `Build.VERSION.SDK_INT` checks rather than lowering `minSdk` back
 down — Keep Screen On and Volume Mode don't need anything past API 26 on their own.
+
+`Tile.setSubtitle()` specifically is API 29+, one release past this app's own floor — every tile
+sets it through `util/TileCompat.kt`'s `setSubtitleCompat()` extension (a plain `SDK_INT >= Q`
+guard) rather than the raw `subtitle =` property, since calling that directly on a real API 28
+device throws `NoSuchMethodError` instead of just not showing a second line. Any new tile should use
+`setSubtitleCompat()` too rather than the raw property.
 
 ## Architecture
 
@@ -163,9 +170,13 @@ from hardware volume buttons or another app, not just from this tile's own click
 
 ### Battery Charge Optimization (`tiles/BatteryChargeTileService.kt`, `tiles/ChargeOptimization.kt`)
 
-Cycles Off → Adaptive Charging → Limit to 80% → Off — the same three modes as Settings > Battery >
+Toggles Adaptive Charging ↔ Limit to 80% — two of the same three modes as Settings > Battery >
 Charging optimization on Pixel (added in the December 2024 update / Android 15 QPR1, Pixel 6a and
-later). **There is no public Android SDK API for this feature at all** — no `BatteryManager` call,
+later); `Off` is deliberately excluded from the tile's cycle (see `advanceChargingMode()` in
+`ChargeOptimization.kt`) so the tile never disables optimization on its own — `Off` only ever
+appears as the state before this app has written anything yet (`ChargingModePrefs`'s zero default),
+same case as `WRITE_SECURE_SETTINGS` not being granted. **There is no public Android SDK API for
+this feature at all** — no `BatteryManager` call,
 no documented `Settings` constant. `ChargeOptimization.kt` writes the same two undocumented
 `Settings.Secure` ints (`adaptive_charging_enabled`, `charge_optimization_mode`) the Settings screen
 itself writes — reverse-engineered technique, credited to
@@ -210,14 +221,58 @@ because the value can't be read to confirm what changed even if something did.
 If a future change touches this function, don't try to "fix" it back into reading the live value —
 that read is not currently possible for a normal app, not a bug in this codebase.
 
+### Private DNS (`tiles/PrivateDnsTileService.kt`, `tiles/PrivateDns.kt`)
+
+Toggles Private DNS Automatic (opportunistic) ↔ whatever hostname is already saved in Settings >
+Network & internet > Private DNS, same two of three modes Battery Charge Optimization exposes for
+its own setting — `Off` is deliberately excluded from the toggle here too, for the same reason: the
+tile should never be the thing that turns a protection off, only the thing that switches between two
+"on" positions. From `Off`, `togglePrivateDnsMode()` moves to `Auto` first (never straight to
+`Hostname`) — see that function's doc in `PrivateDns.kt`.
+
+This writes the same two undocumented `Settings.Global` keys (`private_dns_mode`,
+`private_dns_specifier`) Android's own Private DNS screen writes — same reverse-engineered-settings
+category as Battery Charge Optimization, credited to
+[flashsphere/private-dns-qs](https://github.com/flashsphere/private-dns-qs) and its upstream
+[joshuawolfsohn/Private-DNS-Quick-Tile](https://github.com/joshuawolfsohn/Private-DNS-Quick-Tile).
+Writing either key needs `WRITE_SECURE_SETTINGS` — same permission, same no-Settings-screen-grants-it
+situation, same `adb shell pm grant` flow as Battery Charge Optimization; a single grant covers both
+tiles at once, and `PrivateDnsTileService` checks the same `hasWriteSecureSettings()`.
+
+**Unlike Battery Charge Optimization, this one genuinely can read the live value back.**
+`Settings.Global.getString` on `private_dns_mode`/`private_dns_specifier` is not `@hide`-restricted
+the way `adaptive_charging_enabled` is — both reference implementations above read these two keys
+unconditionally, with no special-cased permission or `android:testOnly` manifest flag needed. So
+`PrivateDns.kt` has no local prefs object at all, no persisted-state exception to the rule stated
+above — `currentPrivateDnsMode()`/`currentPrivateDnsHostname()` read straight from `Settings.Global`
+on every call, same as every other tile in this app except Battery Charge Optimization.
+
+**"User not set" scenario:** `togglePrivateDnsMode()` can only ever fail to compute a next mode when
+it's at `Auto` and `private_dns_specifier` is empty — `Off`→`Auto` never needs a hostname, and
+`Hostname`→`Auto` implies one already exists. When that happens the tile can't silently succeed, so
+`onClick()` opens `MainActivity` instead — same "tap to grant, don't silently fail" pattern as every
+other setup-needed case in this app. Unlike the rest of this app's tiles, MainActivity's Private DNS
+card needs to *collect user input* (there's no Settings screen deep link for "Private DNS"
+specifically to hand off to, and neither reference implementation above found one either — the older
+one solves this with its own in-app hostname `EditText` for the same reason), so
+`PrivateDnsHostnameCard` — a small `OutlinedTextField` + Save button, not the shared `FeatureCard` —
+writes the typed hostname straight to `Settings.Global` via `setPrivateDnsHostname()`. This isn't a
+persisted-state exception either: the text field is scratch UI input before a save action, not a
+copy of app state: the moment it's saved, the single source of truth is the OS setting exactly as
+for every other tile, and to change the hostname *later* the only path is Android's own Private DNS
+screen — Tooler always just follows whatever is currently saved there.
+
 ### Shared refresh pattern
 
-Three of the four tiles follow the same shape: **never persist state, always read the system live,
+Three of the five tiles follow the same shape: **never persist state, always read the system live,
 and use `TileService.requestListeningState()` from whatever component changed that state
 out-of-band** (the accessibility service, the keep-awake service, the ringer-mode receiver) so the
 tile catches up immediately instead of waiting for the QS panel to next be pulled down. Keep new
 tiles on this pattern unless, like Battery Charge Optimization, the platform makes a live read
-structurally impossible.
+structurally impossible. Private DNS reads live too (see above) but, like Battery Charge
+Optimization, has no equivalent out-of-band signal to hook — nothing broadcasts when
+`private_dns_mode` changes from Settings directly, so both just re-read on `onStartListening()`
+instead and can lag until the QS panel is next opened.
 
 ### Tile tap latency
 

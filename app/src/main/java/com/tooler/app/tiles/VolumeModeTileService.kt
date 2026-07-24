@@ -11,6 +11,7 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import com.tooler.app.R
 import com.tooler.app.util.hasNotificationPolicyAccess
+import com.tooler.app.util.setSubtitleCompat
 
 class VolumeModeTileService : TileService() {
 
@@ -57,7 +58,7 @@ class VolumeModeTileService : TileService() {
                 else -> R.drawable.ic_volume_normal to "Normal"
             }
             icon = Icon.createWithResource(this@VolumeModeTileService, iconRes)
-            subtitle = label
+            setSubtitleCompat(label)
             // Unlike Screenshot, this tile always reflects a real current state — Normal isn't
             // "off" any more than Vibrate or Silent is, they're three positions of the same
             // switch — so it stays STATE_ACTIVE (colored) in all three, not just two of them.

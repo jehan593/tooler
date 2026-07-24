@@ -11,6 +11,7 @@ import android.provider.Settings
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import com.tooler.app.util.isAccessibilityServiceEnabled
+import com.tooler.app.util.setSubtitleCompat
 
 class ScreenshotTileService : TileService() {
 
@@ -45,7 +46,7 @@ class ScreenshotTileService : TileService() {
         val enabled = isAccessibilityServiceEnabled(this, ScreenshotAccessibilityService::class.java)
         qsTile?.apply {
             state = Tile.STATE_INACTIVE
-            subtitle = if (enabled) null else "Tap to enable"
+            setSubtitleCompat(if (enabled) null else "Tap to enable")
             updateTile()
         }
     }

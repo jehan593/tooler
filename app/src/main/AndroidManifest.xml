@@ -26,12 +26,13 @@
          battery optimization makes the OS kill this process far less eagerly. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
-    <!-- Battery Charge Optimization: writes two undocumented Settings.Secure ints (see
-         tiles/ChargeOptimization.kt) with no Settings screen able to grant it — the user runs
+    <!-- Battery Charge Optimization writes two undocumented Settings.Secure ints (see
+         tiles/ChargeOptimization.kt) and Private DNS writes two Settings.Global ones (see
+         tiles/PrivateDns.kt) — both with no Settings screen able to grant this, so the user runs
          `adb shell pm grant com.tooler.app android.permission.WRITE_SECURE_SETTINGS` once, from a
-         computer, per the Battery Charge Optimization card in MainActivity. tools:ignore silences
-         the "protected permission" lint warning; declaring it here is required either way for
-         `pm grant` to have something to grant. -->
+         computer, per either card in MainActivity. tools:ignore silences the "protected
+         permission" lint warning; declaring it here is required either way for `pm grant` to have
+         something to grant. -->
     <uses-permission
         android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
@@ -108,6 +109,20 @@
             android:exported="true"
             android:icon="@drawable/ic_battery_off"
             android:label="@string/tile_battery_charge"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
+
+        <service
+            android:name=".tiles.PrivateDnsTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_dns_off"
+            android:label="@string/tile_private_dns"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
