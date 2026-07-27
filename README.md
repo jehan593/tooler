@@ -1,5 +1,9 @@
 # Tooler
 
+[![Build APK](https://github.com/jehan593/tooler/actions/workflows/build-apk.yml/badge.svg)](https://github.com/jehan593/tooler/actions/workflows/build-apk.yml)
+[![Latest release](https://img.shields.io/github/v/release/jehan593/tooler)](https://github.com/jehan593/tooler/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Quick Settings tiles that stock Android — and a lot of OEM skins — leave out, none of which need
 root. Nord color palette, Martian Mono Nerd Font, Jetpack Compose UI, plus one home-screen launcher
 shortcut.
@@ -77,3 +81,8 @@ from the [Nerd Fonts](https://github.com/ryanoasis/nerd-fonts) project releases 
 
 Deliberately not requested: `INTERNET`, `SYSTEM_ALERT_WINDOW`, `QUERY_ALL_PACKAGES`, any exact-alarm
 permission, root.
+
+## License
+
+MIT — see [`LICENSE`](LICENSE). The bundled Martian Mono Nerd Font is licensed separately under
+the SIL Open Font License 1.1 — see [`MARTIAN_MONO_LICENSE.txt`](MARTIAN_MONO_LICENSE.txt).
