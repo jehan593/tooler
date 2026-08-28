@@ -37,7 +37,16 @@
         android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
 
+    <!-- Lock Quick Settings: guard permission declared on the ShizukuProvider below (see
+         util/Shizuku.kt). Declaring it here too mirrors the Shizuku integration docs and essentials —
+         without it Android can refuse the app's own guarded-provider lookups. It's a platform
+         signature permission, so a normal app can't be granted it; that's fine, it's only a sentinel. -->
+    <uses-permission
+        android:name="android.permission.INTERACT_ACROSS_USERS_FULL"
+        tools:ignore="ProtectedPermissions" />
+
     <application
+        android:name=".ToolerApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -132,6 +141,20 @@
                 android:value="true" />
         </service>
 
+        <service
+            android:name=".tiles.LockedQsTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_locked_qs"
+            android:label="@string/tile_locked_qs"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
+                android:value="true" />
+        </service>
+
         <!-- Bound only by the system (BIND_ACCESSIBILITY_SERVICE is a signature-ish permission no
              other app holds) — exists solely so ScreenshotTileService has a caller that's allowed
              to invoke performGlobalAction(GLOBAL_ACTION_TAKE_SCREENSHOT). See its class doc. -->
@@ -182,6 +205,21 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <!-- Shizuku (Lock Quick Settings): the standard integration from the Shizuku docs, same as
+             essentials — ShizukuProvider is how Shizuku.getBinder() gets the shell-side binder into
+             this process. It lives in the Shizuku API library, not this app's code; R8 keeps it
+             because it's manifest-declared. Exported is required; the provider is guarded by the
+             INTERACT_ACROSS_USERS_FULL permission declared above. The Shizuku ≤11
+             `SystemServiceHelper$Receiver` is deliberately NOT declared here — that class no longer
+             exists in the current API (13.1.5), and ShizukuProvider's own binder flow replaces it. -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:enabled="true"
+            android:exported="true"
+            android:multiprocess="false"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
 
     </application>
 

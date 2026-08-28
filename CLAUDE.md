@@ -9,19 +9,21 @@ leave out — none of them require root. Nord color palette, Martian Mono Nerd F
 UI (matches ownscreen/noter/linker's visual identity — see sibling repos at `../ownscreen`,
 `../noter`, `../linker`). Package `com.tooler.app`, minSdk 28.
 
-Currently ships five tiles: **Screenshot**, **Keep Screen On**, **Volume Mode** (cycles
+Currently ships six tiles: **Screenshot**, **Keep Screen On**, **Volume Mode** (cycles
 Normal/Vibrate/Silent), **Battery Charge Optimization** (toggles Adaptive Charging/Limit to 80% —
 deliberately no Off step), **Private DNS** (toggles Automatic/a hostname you've already set —
-deliberately no Off step either), plus one home-screen launcher shortcut: **Lock Screen** (no
-AppWidget — see Shortcuts below for why).
+deliberately no Off step either), **Lock Quick Settings** (hides the Quick Settings panel while the
+screen is locked — the one tile that needs the external Shizuku app, see its section below), plus one
+home-screen launcher shortcut: **Lock Screen** (no AppWidget — see Shortcuts below for why).
 
-**No persisted state anywhere**, with one deliberate, OS-forced exception. Every tile reads live
+**No persisted state anywhere**, with two deliberate, OS-forced exceptions. Every tile reads live
 system state (`AudioManager`, `PowerManager`, `AccessibilityManager`) on every click instead of
 keeping its own copy of it — there's no Room, no DataStore, no dependency-injected repository,
 because there's nothing here that needs one. Keep it that way: a new tile should default to "read
-the system, act on the system," not "add a repository." The one exception is Battery Charge
-Optimization's `ChargingModePrefs` (a bare `SharedPreferences` int) — see that section for why
-reading the live value back is flatly impossible for a normal app here, not a design choice.
+the system, act on the system," not "add a repository." The exceptions are Battery Charge
+Optimization's `ChargingModePrefs` (a bare `SharedPreferences` int) and Lock Quick Settings'
+`LockedQsPrefs` (a bare `SharedPreferences` boolean) — see those sections for why each one
+structurally has no live value that can be read back, which is an OS limitation, not a design choice.
 
 ## Commands
 
@@ -50,8 +52,11 @@ reading the live value back is flatly impossible for a normal app here, not a de
 - The release build is minified (`isMinifyEnabled`), resource-shrunk (`isShrinkResources`), and
   ABI-filtered to `arm64-v8a`/`armeabi-v7a` (real phones only) — same lightest-possible-APK pass
   done for the sibling apps. No custom `proguard-rules.pro` keep rules are needed: every component
-  here (three `TileService`s, one `AccessibilityService`, one `Service`, one `BroadcastReceiver`)
-  is manifest-declared, and AGP keeps those automatically — nothing in this app uses reflection.
+  here (four `TileService`s, one `AccessibilityService`, one `Service`, one `BroadcastReceiver`,
+  plus the library's `rikka.shizuku.ShizukuProvider`) is manifest-declared, and AGP keeps those
+  automatically. `LockedQsReceiver` is deliberately NOT manifest-declared (dynamically registered —
+  see its section) and R8 keeps Shizuku accessed like any other library code, by consistent
+  renaming rather than reflection.
 
 ## Why minSdk 28
 
@@ -213,7 +218,8 @@ private `ChargingModePrefs` object (a single `SharedPreferences` int, in `Charge
 remembers the last mode *this app itself* wrote, purely so the tile knows what to cycle to next.
 This is the **one deliberate, OS-forced exception** to "never persist local state" in this app (see
 "No persisted state anywhere" above) — every other tile can always read the real system value, this
-one structurally cannot, for any normally-distributed app. The unavoidable consequence: if the mode
+one structurally cannot, for any normally-distributed app (the only other exception is Lock Quick
+Settings' `LockedQsPrefs`, see that section for why its flag is equally unreadable). The unavoidable consequence: if the mode
 is changed from Settings directly instead of through this tile, `ChargingModePrefs` goes stale until
 the next tap — there is no notification, broadcast, or `ContentObserver` that could catch that,
 because the value can't be read to confirm what changed even if something did.
@@ -262,15 +268,85 @@ copy of app state: the moment it's saved, the single source of truth is the OS s
 for every other tile, and to change the hostname *later* the only path is Android's own Private DNS
 screen — Tooler always just follows whatever is currently saved there.
 
+### Lock Quick Settings (`tiles/LockedQsTileService.kt`, `tiles/LockedQsReceiver.kt`, `tiles/LockedQs.kt`, `util/Shizuku.kt`, `util/StatusBarFlags.kt`, `ToolerApp.kt`)
+
+Toggles whether the Quick Settings panel can be pulled down while the screen is locked: when
+enabled, `LockedQsReceiver` (dynamically registered — see below) listens for `ACTION_SCREEN_OFF`
+and runs `cmd statusbar send-disable-flag quick-settings`; on `ACTION_USER_PRESENT` it runs
+`cmd statusbar send-disable-flag none` to restore it. This is a direct port of essentials' "Disable
+Quick Settings on lock screen" feature and exists because recent Android builds (the `quick-settings`
+disable-flag reached AOSP in 2026) let the QS panel be pulled down from the lock screen by default —
+a privacy/accidental-tap hazard the stock OS offers no user setting for. On Android builds without
+that flag support, the command is a harmless no-op; the tile still toggles fine.
+
+**Why this needs Shizuku.** `cmd statusbar send-disable-flag` is a shell command whose permission
+model is `STATUS_BAR`, a `signature|privileged` permission — only the shell UID (or root) can
+invoke it, and this app is neither. `WRITE_SECURE_SETTINGS` does **not** help here, and `pm grant`
+cannot grant signature permissions, so there is literally no permission-request flow that gives a
+normal app this power — the same situation that forces every other non-root "hide QS while locked"
+app to go through Shizuku. Tooler uses the standard Shizuku integration (same as essentials):
+`dev.rikka.shizuku:api:13.1.5` + `dev.rikka.shizuku:provider:13.1.5` in
+`gradle/libs.versions.toml`, a manifest-declared `rikka.shizuku.ShizukuProvider`
+(authorities `${applicationId}.shizuku`, guarded by `INTERACT_ACROSS_USERS_FULL` — the library's
+own recommended setup, so no custom keep rules are needed and R8 just renames the library classes
+consistently). `util/Shizuku.kt`'s `ShizukuUtils` is the small wrapper: an `Application`
+(`ToolerApp`, new for this feature) registers `ShizukuServiceConnection`s at process start;
+`isGranted()` asks Shizuku's permission state; `requestPermission()` opens the standard grant
+dialog (result delivered back to `MainActivity` through a `DisposableEffect`-registered
+`Shizuku.OnRequestPermissionResultListener`, `REQUEST_CODE = 20231001`); `runCommand()` executes
+`sh -c <command>` through the binder and `waitFor()`s. The actual remote-process call goes through
+`IShizukuService.Stub.asInterface(binder)` directly because `Shizuku.newProcess` is private in
+13.1.5 — the AIDL stub arrives transitively from `dev.rikka.shizuku:aidl:13.1.5` via the api
+library's own POM, no extra dependency line needed.
+
+Shizuku must be actively running for the tile to be enabled: the user starts it from the separate
+Shizuku app (via adb or root), then grants this app shell access when the tile first asks. If Shizuku
+isn't installed from a store the app knows how to open (`moe.shizuku.privileged.api`), the
+`MainActivity` card falls back to opening https://shizuku.rikka.app/ instead. Unlike essentials, this
+tile has **no biometric confirmation step** (`LockScreenShortcutActivity` guarding, `TileAuthActivity`,
+etc.) — it's a plain toggle like every other tile here; the only "setup" gate is the Shizuku grant.
+
+**`LockedQsReceiver` is dynamically registered** — in `ToolerApp.onCreate`/`onTerminate` (with
+`Context.RECEIVER_EXPORTED` on API 33+, no flags below), not in the manifest — because
+`ACTION_SCREEN_OFF` and `ACTION_USER_PRESENT` are protected broadcasts that manifest receivers
+stopped receiving on API 26+. The manifest entry for this receiver is deliberately absent; that's
+also the one `ComponentInfo` in this app that R8 doesn't keep by manifest reference, so its class
+name is obfuscated like any unreferenced code (harmless — dynamic registration is done by class
+reference in code, which stays consistent).
+
+`util/StatusBarFlags.kt` mirrors the `StatusBarManager` disable-flag model with a per-requester map
+of requested flags (`requestDisable(requestId, flags)` / `requestRestore(requestId)`), converting
+the resulting aggregate to the corresponding list of `cmd statusbar send-disable-flag` invocations
+(an empty aggregate becomes `send-disable-flag none`; the flag for this feature is the single
+string `"quick-settings"`). `ShizukuUtils` just executes those commands — it ignores the exit code
+and never whines, since the quick-settings flag is a no-op on pre-2026 Android anyway.
+
+**This is the app's second deliberate, OS-forced persisted-state exception.** There is no live value
+to read back the way Battery Charge Optimization can't read its mode: the disable request lives
+inside SystemUI's `DisableContentRecord`s, which no public API — or any non-system contract — exposes
+to this app. So `LockedQs.kt`'s `LockedQsPrefs` (a bare `SharedPreferences` boolean) remembers
+whether the user toggled the tile on, purely so the receiver knows whether to arm itself on the next
+`SCREEN_OFF`. Same unavoidable consequences as `ChargingModePrefs`: if the process was killed while
+armed, the flag still dies with the OS reboot, so the tile can't claim "on" state it can't guarantee
+— `isLockedQsEnabled()` returns the *intent* (pref), and on every `ACTION_USER_PRESENT` the receiver
+unconditionally sends `none` as a safety net so the panel can never be stuck disabled. Don't try to
+"fix" this back into reading live state; there isn't any to read.
+
+**Caveat shared with essentials:** the receiver only fires while the process is alive. If Android has
+killed the app's process (see "Tile tap latency" above), an armed state has no listener until the
+user next opens the app or taps a tile — the QS panel is simply available during that window, never
+broken. This is inherent to the protected-broadcast dynamic-registration approach and is why the
+tile's text says "next time the screen locks," not "instantly."
+
 ### Shared refresh pattern
 
-Three of the five tiles follow the same shape: **never persist state, always read the system live,
+Three of the six tiles follow the same shape: **never persist state, always read the system live,
 and use `TileService.requestListeningState()` from whatever component changed that state
 out-of-band** (the accessibility service, the keep-awake service, the ringer-mode receiver) so the
 tile catches up immediately instead of waiting for the QS panel to next be pulled down. Keep new
-tiles on this pattern unless, like Battery Charge Optimization, the platform makes a live read
-structurally impossible. Private DNS reads live too (see above) but, like Battery Charge
-Optimization, has no equivalent out-of-band signal to hook — nothing broadcasts when
+tiles on this pattern unless, like Battery Charge Optimization and Lock Quick Settings, the platform
+makes a live read structurally impossible. Private DNS reads live too (see above) but, like Battery
+Charge Optimization, has no equivalent out-of-band signal to hook — nothing broadcasts when
 `private_dns_mode` changes from Settings directly, so both just re-read on `onStartListening()`
 instead and can lag until the QS panel is next opened.
 
@@ -295,10 +371,13 @@ Two separate things affect how fast a tile responds, and only one of them is ful
 
 ### UI (`MainActivity.kt`, `ui/FeatureCard.kt`)
 
-One screen, no navigation. Five `FeatureCard`s (a small shared composable — title, live status,
-description, optional action button) show the same status each tile reads plus the opt-in battery
-card above, and a way to jump to the relevant Settings screen or (for Keep Screen On) toggle
-directly from the app instead of the QS panel. Every status is re-read `ON_RESUME`
+One screen, no navigation. Six `FeatureCard`s (a small shared composable — each tile's own icon,
+title, a color-coded status chip in Nord's success/warning/frost tones, description, and a filled
+M3 button for any action) show the same status each tile reads plus the opt-in battery card above,
+and a way to jump to the relevant Settings screen or (for Keep Screen On and Lock Quick Settings)
+toggle directly from the app instead of the QS panel. "Setup needed" states render amber, live
+"On"/"Ready" green, so the thing that needs your attention is readable at a glance rather than
+blending into the description text. Every status is re-read `ON_RESUME`
 (`DisposableEffect` + `LifecycleEventObserver`, same pattern as linker's `MainActivity`) since all
 of them can change from outside this screen — Settings, hardware buttons, or the tiles themselves.
 
