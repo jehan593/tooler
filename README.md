@@ -10,8 +10,8 @@ shortcut.
 
 Tooler requests no `INTERNET` permission and has no background service beyond the one you
 explicitly turn on (Keep Screen On). Nearly everything reads live system state on every tile click
-— there's no database, no settings to sync, nothing to go stale, with one forced exception (see
-Battery Charge Optimization below).
+— there's no database, no settings to sync, nothing to go stale, with two OS-forced exceptions (see
+Battery Charge Optimization and Lock Quick Settings below).
 
 ## Tiles
 
@@ -19,15 +19,23 @@ Battery Charge Optimization below).
   (Settings → Accessibility) the first time you use it; the tile itself walks you there. No root,
   no MediaProjection consent dialog on every capture.
 - **Keep Screen On** — holds the screen awake until you toggle it off again, from the tile or the
-  app. Shows a low-priority ongoing notification with its own "Turn off" action while active.
+  app. Shows a low-priority ongoing notification — with an eye icon in the status bar and its own
+  "Turn off" action — while active.
 - **Volume Mode** — cycles Normal → Vibrate → Silent → Normal. The first time you switch into
   Silent it'll ask for Do Not Disturb access (required by Android to set that ringer mode); Normal
   and Vibrate need nothing.
-- **Battery Charge Optimization** — cycles Off → Adaptive Charging → Limit to 80% → Off, the same
-  modes as Settings → Battery → Charging optimization. **Pixel only** (Android 15 QPR1+, Pixel 6a
-  and later) and there's no public Android API for it — Tooler writes the same undocumented
-  `Settings.Secure` keys the Settings screen itself does. That requires `WRITE_SECURE_SETTINGS`,
-  which no app can request at runtime; grant it once with the phone connected:
+- **Private DNS** — toggles between Automatic (opportunistic) and whatever hostname you've already
+  saved in Settings → Network & internet → Private DNS. Off is deliberately left out of the cycle,
+  same as Battery Charge Optimization — the tile only switches between two "on" positions. Needs
+  the same `WRITE_SECURE_SETTINGS` adb grant as the Battery tile (one command enables both); if no
+  hostname is saved yet, the app collects one before the tile has anything to toggle into.
+- **Battery Charge Optimization** — toggles Adaptive Charging ↔ Limit to 80%, the same modes as
+  Settings → Battery → Charging optimization. **Pixel only** (Android 15 QPR1+, Pixel 6a and
+  later) and there's no public Android API for it — Tooler writes the same undocumented
+  `Settings.Secure` keys the Settings screen itself does. Off is deliberately not part of the
+  cycle, so the tile never disables charging optimization on its own. Writing either key requires
+  `WRITE_SECURE_SETTINGS`, which no app can request at runtime; grant it once with the phone
+  connected:
   ```sh
   adb shell pm grant com.tooler.app android.permission.WRITE_SECURE_SETTINGS
   ```
@@ -35,13 +43,23 @@ Battery Charge Optimization below).
   normal app read this setting back, only write it, so the tile's status reflects the last mode
   *Tooler itself* set rather than a live read — if you change it from Settings directly, the tile
   won't notice until you tap it again.
+- **Lock Quick Settings** — stops the Quick Settings panel from being pulled down while the screen
+  is locked, and brings it back the moment you unlock. There's no Android API or Settings screen
+  for this: Tooler runs a hidden OS command
+  (`cmd statusbar send-disable-flag quick-settings`) through [Shizuku](https://shizuku.rikka.app/)
+  — install Shizuku, start it (via adb or root), then grant Tooler shell access once from the
+  app. Recent Android builds pull the Quick Settings panel down from the lock screen by default
+  (the disable flag used here reached AOSP in 2026); on older builds the command does nothing and
+  the panel just stays as stock Android made it. Like Battery Charge
+  Optimization this is one of Tooler's two OS-forced persisted exceptions — the disable flag can't
+  be read back and resets on reboot, so the tile remembers your *intent* rather than live state,
+  and it only catches lock/unlock while Tooler's process is alive.
 
 ## Shortcuts
 
 - **Lock Screen** — a home-screen shortcut icon (not a widget) that locks the screen instantly,
   using the same Accessibility Service as the Screenshot tile. Add it via your launcher's
-  widgets/shortcuts picker, same place Screenshot/Keep Screen On/Volume Mode/Battery Charge
-  Optimization tiles come from.
+  widgets/shortcuts picker, same place the Quick Settings tiles come from.
 
 ## Building
 
@@ -75,7 +93,8 @@ from the [Nerd Fonts](https://github.com/ryanoasis/nerd-fonts) project releases 
 |---|---|
 | `WAKE_LOCK`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE` | Back the Keep Screen On tile's wake lock + foreground service — only held while that tile is toggled on. |
 | `POST_NOTIFICATIONS` | Runtime-requested (Android 13+) right before Keep Screen On starts, so its ongoing notification actually shows. |
-| `WRITE_SECURE_SETTINGS` | Backs the Battery Charge Optimization tile — must be granted manually via `adb shell pm grant`; there's no Settings screen for it. |
+| `WRITE_SECURE_SETTINGS` | Backs the Battery Charge Optimization and Private DNS tiles — must be granted manually via `adb shell pm grant`; there's no Settings screen for it. |
+| `INTERACT_ACROSS_USERS_FULL` | Guards Tooler's Shizuku content provider (the Shizuku library's own requirement for the Lock Quick Settings tile to receive the shell binder). |
 | Accessibility Service (granted via Settings, not a manifest permission) | Lets the Screenshot tile and Lock Screen shortcut call `performGlobalAction()` — the only non-root way to trigger a screenshot or lock from outside an active window. |
 | Notification Policy Access / Do Not Disturb access (granted via Settings) | Required by Android before `setRingerMode(RINGER_MODE_SILENT)` will take effect. |
 

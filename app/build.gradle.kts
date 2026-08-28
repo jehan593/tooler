@@ -93,4 +93,11 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     debugImplementation(libs.androidx.ui.tooling)
     implementation(libs.androidx.material3)
+
+    // Lock Quick Settings runs `cmd statusbar send-disable-flag` as the shell user through Shizuku
+    // — the only non-root way to hold the STATUS_BAR permission that command needs (see util/Shizuku.kt).
+    // `api` pulls the moe.shizuku.server.IShizukuService AIDL stub in transitively (dev.rikka.shizuku:aidl);
+    // `provider` is the content provider that makes Shizuku.getBinder() work inside this process.
+    implementation(libs.shizuku.api)
+    implementation(libs.shizuku.provider)
 }

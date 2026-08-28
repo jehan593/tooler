@@ -81,7 +81,11 @@ class KeepAwakeService : Service() {
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Screen kept on")
-            .setSmallIcon(R.drawable.ic_notification_keep_awake)
+            // Small icon doubles as the status-bar slip-on: a white silhouette of the same
+            // Material Symbols "visibility" (open eye) glyph the tile and MainActivity use, so the
+            // active wake lock is unmistakable in the status bar. The system renders only this
+            // drawable's alpha channel.
+            .setSmallIcon(R.drawable.ic_keep_screen_on)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .addAction(0, "Turn off", stopPendingIntent)
