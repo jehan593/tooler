@@ -2,9 +2,12 @@ package com.tooler.app.util
 
 import android.content.pm.PackageManager
 import android.os.IBinder
+import android.os.ParcelFileDescriptor
 import android.os.RemoteException
+import android.util.Log
 import moe.shizuku.server.IShizukuService
 import rikka.shizuku.Shizuku
+import java.util.ArrayDeque
 
 /**
  * Thin wrapper over the Shizuku API for running privileged shell commands — modified from
@@ -32,7 +35,14 @@ import rikka.shizuku.Shizuku
  * `dev.rikka.shizuku:api`'s transitive `dev.rikka.shizuku:aidl` dependency — see app/build.gradle.kts.
  */
 object ShizukuUtils {
+    private const val TAG = "ShizukuUtils"
+
     private var binder: IBinder? = null
+
+    // Bounds the amount of command output we ever retain (the offending line of a failed command is
+    // almost always near the end), so a chatty wrapper like `cmd statusbar` can't balloon memory.
+    private const val MAX_TAIL_LINES = 40
+    private const val MAX_TAIL_CHARS = 600
 
     /** Request code for the shell-access grant dialog; only used to match results back to requests. */
     const val REQUEST_CODE = 20231001
@@ -97,23 +107,85 @@ object ShizukuUtils {
     }
 
     /**
-     * Runs [command] as the shell user. Returns success/failure rather than throwing — callers
-     * gate on [isGranted] first anyway; this is just the last line of defense, same shape as
-     * [com.tooler.app.tiles.advanceChargingMode]'s guarded write.
+     * The outcome of a Shizuku command run. [exitCode] is the child's exit code — 0 means success,
+     * mirroring aShellYou's executor — or null when the command couldn't be run at all (Shizuku not
+     * attached, shell access not granted, or a binder failure mid-run). [errorOutput] holds the tail
+     * of the child's output to give a failed run something to say: stderr when present, otherwise
+     * stdout (both are drained to EOF so a pipe can never deadlock `waitFor`).
      */
-    fun runCommand(command: String): Boolean {
-        if (!isBinderAlive || !isGranted()) return false
+    data class CommandOutcome(val exitCode: Int?, val errorOutput: String)
+
+    /**
+     * Runs [command] as the shell user, draining output and returning [CommandOutcome]. The command
+     * string has the same light sanitization as aShellYou's executor (`trim`, plus dropping a
+     * pasted `adb shell ` prefix) so users can paste an adb-style command verbatim into a tile.
+     */
+    fun runCommandForOutput(command: String): CommandOutcome {
+        val cleanCommand = command.trim().removePrefix("adb ").removePrefix("shell ")
+        if (!isBinderAlive || !isGranted()) return CommandOutcome(null, "")
         val process = try {
             IShizukuService.Stub.asInterface(binder)
-                ?.newProcess(arrayOf("sh", "-c", command), null, "/")
+                ?.newProcess(arrayOf("sh", "-c", cleanCommand), null, "/")
         } catch (e: RemoteException) {
             null
-        } ?: return false
-        return try {
-            process.waitFor()
-            true
+        } ?: return CommandOutcome(null, "")
+
+        // Standard java.lang.Process hygiene for the remote equivalent: read both streams on their
+        // own threads *before* waitFor, or a command emitting more than the OS pipe buffer blocks
+        // forever (process waiting on write, us waiting on the process).
+        var stderr = emptyList<String>()
+        var stdout = emptyList<String>()
+        val exitCode = try {
+            val stderrFd = process.errorStream
+            val stdoutFd = process.inputStream
+            val stderrThread = Thread { stderr = drainTail(stderrFd) }.apply { start() }
+            val stdoutThread = Thread { stdout = drainTail(stdoutFd) }.apply { start() }
+            val code = process.waitFor()
+            stderrThread.join(2000)
+            stdoutThread.join(2000)
+            code
         } catch (e: RemoteException) {
-            false
+            return CommandOutcome(null, "")
         }
+
+        val errorOutput = (if (stderr.isNotEmpty()) stderr else stdout)
+            .joinToString("\n")
+            .takeLast(MAX_TAIL_CHARS)
+        Log.d(TAG, "$cleanCommand -> exit $exitCode:\n$errorOutput")
+        return CommandOutcome(exitCode, errorOutput)
     }
+
+    /** Reads [pfd] to EOF, keeping only the last [MAX_TAIL_LINES] lines. Closing the stream closes
+     *  the file descriptor with it, so the pipe is released exactly once. */
+    private fun drainTail(pfd: ParcelFileDescriptor?): List<String> {
+        val tail = ArrayDeque<String>()
+        try {
+            pfd ?: return emptyList()
+            ParcelFileDescriptor.AutoCloseInputStream(pfd).use { input ->
+                input.bufferedReader(Charsets.UTF_8).forEachLine { line ->
+                    if (tail.size == MAX_TAIL_LINES) tail.removeFirst()
+                    tail.addLast(line)
+                }
+            }
+        } catch (@Suppress("UNUSED_PARAMETER") e: Exception) {
+            // A pipe that died mid-read just means short output — nothing to log.
+        }
+        return tail.toList()
+    }
+
+    /**
+     * Runs [command] as the shell user and returns just its exit code — null if the command
+     * couldn't be run at all. Carries the same output-draining as [runCommandForOutput]; callers
+     * that only need to know whether the command was issued (like `StatusBarFlags`) use
+     * [runCommand] instead, which is exit-code-agnostic by design.
+     */
+    fun runCommandForResult(command: String): Int? = runCommandForOutput(command).exitCode
+
+    /**
+     * Runs [command] as the shell user without caring about its exit code — a started process is
+     * "success" for callers like [com.tooler.app.util.StatusBarFlags] that just need the command
+     * issued. Returns false only if the command couldn't be run at all (not bound, not granted,
+     * binder died mid-run).
+     */
+    fun runCommand(command: String): Boolean = runCommandForResult(command) != null
 }

@@ -28,11 +28,12 @@
 
     <!-- Battery Charge Optimization writes two undocumented Settings.Secure ints (see
          tiles/ChargeOptimization.kt) and Private DNS writes two Settings.Global ones (see
-         tiles/PrivateDns.kt) — both with no Settings screen able to grant this, so the user runs
-         `adb shell pm grant com.tooler.app android.permission.WRITE_SECURE_SETTINGS` once, from a
-         computer, per either card in MainActivity. tools:ignore silences the "protected
-         permission" lint warning; declaring it here is required either way for `pm grant` to have
-         something to grant. -->
+         tiles/PrivateDns.kt) — both with no Settings screen able to grant this. It used to be
+         strictly `adb shell pm grant ... WRITE_SECURE_SETTINGS` from a computer; now the same
+         `pm grant` shells out through Shizuku directly from MainActivity's cards (see
+         util/PermissionStatus.kt), with the adb command kept only as a no-Shizuku fallback.
+         tools:ignore silences the "protected permission" lint warning; declaring it here is
+         required either way for `pm grant` to have something to grant. -->
     <uses-permission
         android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
@@ -63,6 +64,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".customtiles.QsTilesActivity"
+            android:exported="false"
+            android:label="@string/qs_tiles_activity_title"
+            android:theme="@style/Theme.Tooler" />
 
         <!-- Quick Settings tiles: android:permission=BIND_QUICK_SETTINGS_TILE is what makes these
              safe to export — only System UI holds that permission, so nothing else can bind them.
@@ -153,6 +160,114 @@
             <meta-data
                 android:name="android.service.quicksettings.TOGGLEABLE_TILE"
                 android:value="true" />
+        </service>
+
+        <!-- The ten custom-tile slots (customtiles/). These differ from the built-in tiles above
+             on purpose: there's no TOGGLEABLE_TILE meta-data because toggleability is decided per
+             config (the user marks a tile as an on/off switch or a one-shot tap when they create
+             it), and each service is a fixed numbered slot whose label/icon/behavior are swapped in
+             at runtime from CustomTilePrefs. A slot with no config renders "Tile N" + UNAVAILABLE
+             rather than vanishing — QS tiles can't be removed from the panel programmatically, same
+             behavior as aShellYou. -->
+        <service
+            android:name=".customtiles.CustomTile01Service"
+            android:exported="true"
+            android:icon="@drawable/ic_terminal"
+            android:label="@string/custom_tile_1"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".customtiles.CustomTile02Service"
+            android:exported="true"
+            android:icon="@drawable/ic_terminal"
+            android:label="@string/custom_tile_2"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".customtiles.CustomTile03Service"
+            android:exported="true"
+            android:icon="@drawable/ic_terminal"
+            android:label="@string/custom_tile_3"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".customtiles.CustomTile04Service"
+            android:exported="true"
+            android:icon="@drawable/ic_terminal"
+            android:label="@string/custom_tile_4"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".customtiles.CustomTile05Service"
+            android:exported="true"
+            android:icon="@drawable/ic_terminal"
+            android:label="@string/custom_tile_5"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".customtiles.CustomTile06Service"
+            android:exported="true"
+            android:icon="@drawable/ic_terminal"
+            android:label="@string/custom_tile_6"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".customtiles.CustomTile07Service"
+            android:exported="true"
+            android:icon="@drawable/ic_terminal"
+            android:label="@string/custom_tile_7"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".customtiles.CustomTile08Service"
+            android:exported="true"
+            android:icon="@drawable/ic_terminal"
+            android:label="@string/custom_tile_8"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".customtiles.CustomTile09Service"
+            android:exported="true"
+            android:icon="@drawable/ic_terminal"
+            android:label="@string/custom_tile_9"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+        <service
+            android:name=".customtiles.CustomTile10Service"
+            android:exported="true"
+            android:icon="@drawable/ic_terminal"
+            android:label="@string/custom_tile_10"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
         </service>
 
         <!-- Bound only by the system (BIND_ACCESSIBILITY_SERVICE is a signature-ish permission no

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material Symbols Rounded "arrow_back" - navigation back from the custom-tiles screen. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="960"
+    android:viewportHeight="960">
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M800,440L313.2,440L536.8,216.4L480,160L160,480L480,800L536.8,743.6L313.2,520L800,520L800,440Z" />
+</vector>
