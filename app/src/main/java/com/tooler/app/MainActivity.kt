@@ -40,6 +40,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,6 +49,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.tooler.app.customtiles.CustomTilePrefs
+import com.tooler.app.customtiles.QsTilesActivity
 import com.tooler.app.tiles.ChargingMode
 import com.tooler.app.tiles.KeepAwakeService
 import com.tooler.app.tiles.PrivateDnsMode
@@ -63,9 +66,13 @@ import com.tooler.app.ui.FeatureCard
 import com.tooler.app.ui.StatusTone
 import com.tooler.app.ui.theme.ToolerTheme
 import com.tooler.app.util.ShizukuUtils
+import com.tooler.app.util.grantWriteSecureSettings
 import com.tooler.app.util.hasNotificationPolicyAccess
 import com.tooler.app.util.hasWriteSecureSettings
 import com.tooler.app.util.isAccessibilityServiceEnabled
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import rikka.shizuku.Shizuku
 
 class MainActivity : ComponentActivity() {
@@ -95,6 +102,31 @@ class MainActivity : ComponentActivity() {
                 var shizukuAvailable by remember { mutableStateOf(ShizukuUtils.isAvailable()) }
                 var shizukuGranted by remember { mutableStateOf(ShizukuUtils.isGranted()) }
                 var lockedQsEnabled by remember { mutableStateOf(isLockedQsEnabled(this)) }
+                var customTileCount by remember { mutableStateOf(CustomTilePrefs.usedCount(this)) }
+
+                val scope = rememberCoroutineScope()
+
+                // Grants WRITE_SECURE_SETTINGS through Shizuku on the IO dispatcher (the pm grant
+                // shells out over the binder and blocks on waitFor, so it can't run on the main
+                // thread). writeSecureSettingsGranted is keyed off the live re-read in
+                // grantWriteSecureSettings, so a refused/failed grant just leaves the card in its
+                // setup-needed state instead of claiming success.
+                val requestWriteSecureSettingsGrant: () -> Unit = {
+                    scope.launch {
+                        val granted = withContext(Dispatchers.IO) {
+                            grantWriteSecureSettings(this@MainActivity)
+                        }
+                        writeSecureSettingsGranted = granted
+                        if (!granted) {
+                            Toast.makeText(
+                                this@MainActivity,
+                                "Grant failed — check that Shizuku has shell permission, or use:\n" +
+                                    "adb shell pm grant $packageName android.permission.WRITE_SECURE_SETTINGS",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                }
 
                 // Refreshes the Shizuku state the moment the shell-access grant dialog closes —
                 // the toggle + tile re-read isGranted() whenever they paint, but the card's status
@@ -130,6 +162,7 @@ class MainActivity : ComponentActivity() {
                             shizukuAvailable = ShizukuUtils.isAvailable()
                             shizukuGranted = ShizukuUtils.isGranted()
                             lockedQsEnabled = isLockedQsEnabled(this@MainActivity)
+                            customTileCount = CustomTilePrefs.usedCount(this@MainActivity)
                         }
                     }
                     lifecycle.addObserver(observer)
@@ -240,13 +273,24 @@ class MainActivity : ComponentActivity() {
                                     } else {
                                         "Pixel only (Android 15 QPR1+), and there's no public API for it — " +
                                             "Android won't let a normal app request this permission at all, " +
-                                            "so it has to be granted once over ADB from a computer. Tap to " +
-                                            "copy the command, run it with the phone connected, then reopen " +
-                                            "this app."
+                                            "so it has to be granted once with a shell command. With Shizuku " +
+                                            "running, grant it right here without a computer; otherwise tap to " +
+                                            "copy the adb command and run it with the phone connected."
                                     },
-                                    actionLabel = if (writeSecureSettingsGranted) null else "Copy adb grant command",
+                                    actionLabel = when {
+                                        writeSecureSettingsGranted -> null
+                                        !shizukuAvailable -> "Copy adb grant command"
+                                        !shizukuGranted -> "Grant shell access"
+                                        else -> "Grant WRITE_SECURE_SETTINGS"
+                                    },
                                     onAction = if (writeSecureSettingsGranted) null else {
-                                        { copyWriteSecureSettingsGrantCommand() }
+                                        {
+                                            when {
+                                                !shizukuAvailable -> copyWriteSecureSettingsGrantCommand()
+                                                !shizukuGranted -> ShizukuUtils.requestPermission()
+                                                else -> requestWriteSecureSettingsGrant()
+                                            }
+                                        }
                                     }
                                 )
                             }
@@ -260,10 +304,19 @@ class MainActivity : ComponentActivity() {
                                         description = "Toggles Private DNS Automatic ↔ a hostname you set, from " +
                                             "the tile — same modes as Settings > Network & internet > Private " +
                                             "DNS. Needs the same WRITE_SECURE_SETTINGS permission as Battery " +
-                                            "Charge Optimization above; the same adb command grants both at " +
-                                            "once.",
-                                        actionLabel = "Copy adb grant command",
-                                        onAction = { copyWriteSecureSettingsGrantCommand() }
+                                            "Charge Optimization above; a single grant covers both tiles.",
+                                        actionLabel = when {
+                                            !shizukuAvailable -> "Copy adb grant command"
+                                            !shizukuGranted -> "Grant shell access"
+                                            else -> "Grant WRITE_SECURE_SETTINGS"
+                                        },
+                                        onAction = {
+                                            when {
+                                                !shizukuAvailable -> copyWriteSecureSettingsGrantCommand()
+                                                !shizukuGranted -> ShizukuUtils.requestPermission()
+                                                else -> requestWriteSecureSettingsGrant()
+                                            }
+                                        }
                                     )
                                     privateDnsHostname == null -> PrivateDnsHostnameCard(
                                         onSave = { hostname ->
@@ -348,6 +401,35 @@ class MainActivity : ComponentActivity() {
                                                 setLockedQsEnabled(this@MainActivity, true)
                                                 lockedQsEnabled = true
                                             }
+                                        }
+                                    }
+                                )
+                            }
+                            item {
+                                FeatureCard(
+                                    title = "Custom Quick Settings Tiles",
+                                    status = when {
+                                        !shizukuAvailable -> "Shizuku not running"
+                                        !shizukuGranted -> "Setup needed"
+                                        else -> "$customTileCount/10 tiles configured"
+                                    },
+                                    statusTone = if (shizukuGranted) StatusTone.NEUTRAL else StatusTone.WARNING,
+                                    iconRes = R.drawable.ic_terminal,
+                                    description = "Create your own Quick Settings tiles that run any shell command " +
+                                        "through Shizuku — up to 10 slots, each either a one-shot tap or an on/off " +
+                                        "toggle with its own command, icon, and label. Needs the same Shizuku grant " +
+                                        "as Lock Quick Settings; prefix commands with nothing special — they're run " +
+                                        "as the Shizuku user (shell/root depending on how Shizuku itself was started).",
+                                    actionLabel = when {
+                                        !shizukuAvailable -> "Open Shizuku"
+                                        !shizukuGranted -> "Grant shell access"
+                                        else -> "Manage tiles"
+                                    },
+                                    onAction = {
+                                        when {
+                                            !shizukuAvailable -> openShizuku()
+                                            !shizukuGranted -> ShizukuUtils.requestPermission()
+                                            else -> startActivity(Intent(this@MainActivity, QsTilesActivity::class.java))
                                         }
                                     }
                                 )

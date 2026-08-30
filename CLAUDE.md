@@ -13,16 +13,19 @@ Currently ships six tiles: **Screenshot**, **Keep Screen On**, **Volume Mode** (
 Normal/Vibrate/Silent), **Battery Charge Optimization** (toggles Adaptive Charging/Limit to 80% —
 deliberately no Off step), **Private DNS** (toggles Automatic/a hostname you've already set —
 deliberately no Off step either), **Lock Quick Settings** (hides the Quick Settings panel while the
-screen is locked — the one tile that needs the external Shizuku app, see its section below), plus one
-home-screen launcher shortcut: **Lock Screen** (no AppWidget — see Shortcuts below for why).
+screen is locked — a Shizuku-powered tile, see its section below), plus one home-screen launcher
+shortcut: **Lock Screen** (no AppWidget — see Shortcuts below for why). On top of those, ten
+user-configurable **Custom Quick Settings Tiles** slots run arbitrary shell commands through
+Shizuku (see "Custom tiles" below).
 
-**No persisted state anywhere**, with two deliberate, OS-forced exceptions. Every tile reads live
+**No persisted state anywhere**, with three deliberate exceptions. Every tile reads live
 system state (`AudioManager`, `PowerManager`, `AccessibilityManager`) on every click instead of
 keeping its own copy of it — there's no Room, no DataStore, no dependency-injected repository,
 because there's nothing here that needs one. Keep it that way: a new tile should default to "read
 the system, act on the system," not "add a repository." The exceptions are Battery Charge
-Optimization's `ChargingModePrefs` (a bare `SharedPreferences` int) and Lock Quick Settings'
-`LockedQsPrefs` (a bare `SharedPreferences` boolean) — see those sections for why each one
+Optimization's `ChargingModePrefs` (a bare `SharedPreferences` int), Lock Quick Settings'
+`LockedQsPrefs` (a bare `SharedPreferences` boolean), and the custom tiles' `CustomTilePrefs` (a
+bare `SharedPreferences` JSON array of ten slots) — see those sections for why each one
 structurally has no live value that can be read back, which is an OS limitation, not a design choice.
 
 ## Commands
@@ -191,12 +194,14 @@ documents or guarantees to keep stable across OS updates.
 Writing either key needs `WRITE_SECURE_SETTINGS`. Unlike every other permission this app touches
 (Accessibility, Do Not Disturb access, notifications, battery-optimization exemption), **there is
 no Settings screen that grants this one** — a normal app can never prompt for it at runtime. The
-only way to grant it is `adb shell pm grant com.tooler.app android.permission.WRITE_SECURE_SETTINGS`
-from a computer with the phone connected. `BatteryChargeTileService` checks
+grant is `adb shell pm grant com.tooler.app android.permission.WRITE_SECURE_SETTINGS`; MainActivity's
+Battery Charge Optimization and Private DNS cards now issue exactly that command through Shizuku
+(`grantWriteSecureSettings()` in `util/PermissionStatus.kt` — `pm grant` run as the shell user over
+the binder), so no computer is needed once Shizuku is running, with a "Copy adb grant command"
+`ClipboardManager` button kept only as a no-Shizuku fallback. `BatteryChargeTileService` checks
 `util/PermissionStatus.kt`'s `hasWriteSecureSettings()` before every write; if it's not granted the
 tile stays `STATE_INACTIVE` with a "Setup needed" subtitle and tapping opens `MainActivity` instead
-of touching Settings, whose Battery Charge Optimization card has a "Copy adb grant command" button
-(`ClipboardManager`) so the user doesn't have to type the package name themselves. Unlike Volume
+of touching Settings. Unlike Volume
 Mode's Normal/Vibrate/Silent, Off here reads as "optimization disabled" rather than an equally-valid
 third state, so only Adaptive Charging/Limit to 80% paint the tile `Tile.STATE_ACTIVE`; Off and
 "Setup needed" both stay `STATE_INACTIVE`.
@@ -242,7 +247,7 @@ category as Battery Charge Optimization, credited to
 [flashsphere/private-dns-qs](https://github.com/flashsphere/private-dns-qs) and its upstream
 [joshuawolfsohn/Private-DNS-Quick-Tile](https://github.com/joshuawolfsohn/Private-DNS-Quick-Tile).
 Writing either key needs `WRITE_SECURE_SETTINGS` — same permission, same no-Settings-screen-grants-it
-situation, same `adb shell pm grant` flow as Battery Charge Optimization; a single grant covers both
+situation, same Shizuku-issued `pm grant` flow as Battery Charge Optimization; a single grant covers both
 tiles at once, and `PrivateDnsTileService` checks the same `hasWriteSecureSettings()`.
 
 **Unlike Battery Charge Optimization, this one genuinely can read the live value back.**
@@ -337,6 +342,63 @@ killed the app's process (see "Tile tap latency" above), an armed state has no l
 user next opens the app or taps a tile — the QS panel is simply available during that window, never
 broken. This is inherent to the protected-broadcast dynamic-registration approach and is why the
 tile's text says "next time the screen locks," not "instantly."
+
+### Custom tiles (`customtiles/`, `customtiles/BaseCustomTileService.kt`, `customtiles/QsTilesActivity.kt`)
+
+Ten user-configurable Quick Settings tiles that run arbitrary shell commands through Shizuku — a
+direct port of aShellYou's "user-created tiles" feature (same ten fixed slots, same `TileActiveState`
+model). This is a fully user-authored class of tile, not a sixth (seventh, eighth…) built-in one, so
+its shape is deliberately different from the tiles above: the config is *user state*, not system
+state, so it is persisted — the app's third deliberate exception to "no persisted state"
+(`CustomTilePrefs`, a bare `SharedPreferences` JSON array of ten `CustomTileConfig`s, in
+`CustomTiles.kt`, serialized with `org.json` — no Room/DataStore). And there's no room for ten
+parallel hand-written tile classes, so all ten slots are **one abstract `BaseCustomTileService`
+subclassed into ten nearly-empty `CustomTile01Service`…`CustomTile10Service` classes** (the
+`<service>` count in the manifest), each exposing the QS service for its fixed slot. The base class
+binds whatever config currently occupies that slot, so which real-world tile a slot represents is
+entirely data-driven.
+
+Why pre-declared slots instead of a single parametrized service or dynamic registration: QS tiles
+need a distinct `android.service.quicksettings` `<service>` per tile, and a `ComponentName`-based
+re-request (or manual QS edit) to appear on the panel — a single shared service can only ever host
+one tile. Contrast the dynamic-registration approach of `LockedQsReceiver`: that one works because a
+broadcast receiver has no UI surface the user curates. `ToolerApp` (the `Application`) calls
+`TileComponentManager.ensureAllEnabled()` on startup — `PackageManager.setComponentEnabledSetting`
+on each of the ten slot components (a normal app operation, no Shizuku needed) so every slot is
+user-pickable immediately instead of needing a reboot; an empty slot shows as "Tile N" until
+configured.
+
+Creation/editing happens in `QsTilesActivity` (a plain Compose one-screen Activity, no navigation):
+ten slots, each either empty, filled, or toggled on/off and showing its on-command in a monospace
+line with a button that fires it directly (a feature aShellYou also has, exposed without needing to
+expand the tile). The `TileEditorDialog` is the port of aShellYou's `CreateTileScreen` — name, icon
+picker, on/off toggle switch, **Initial state switch** (`isActive`, same as aShellYou), one or two
+commands, one or two subtitles. Saving persists the config, re-enables the slot component, fires
+Android's own "Add <label> tile to Quick Settings?" prompt (`TileComponentManager.promptAddTile`,
+`StatusBarManager.requestAddTileService`, API 33+ — pre-33 the enabled component just appears in the
+QS editor), and requests a tile repaint. On save, static tiles get `offCommand = ""` and `offSubtitle`
+mirrored to `onSubtitle` — same as aShellYou's `toActiveState()`, so a static tile never displays a
+subtitle/command for a state it can't reach. Deleting a slot leaves its `<service>` manifest-declared
+but config-less — it just renders grey.
+
+State semantics match aShellYou: `isActive` is the stored on/off (toggleable tiles) **or** the fixed
+initial state (static tiles), and the tile paints `Tile.STATE_ACTIVE` whenever it's true regardless
+of toggleable — a static tile set to "on" at creation renders as a filled tile, with no separate
+"always inactive" look. `onClick()` paints an immediate "Running…" feedback, then runs the
+appropriate command over the Shizuku binder (`ShizukuUtils.runCommandForResult`, success = exit code
+0). Toggleable tiles only flip the stored `isActive` when the command succeeds (aShellYou's
+executor semantics — a failed toggle doesn't claim a state the command never reached); a failed run
+surfaces via a `NotificationCompat` notification with its own channel (the port of
+aShellYou's `TileNotificationHelper`). The per-slot tap guard (`CustomTileRunner.begin`/`end`) is
+released in a `finally` on the run coroutine itself (not from a post-run child launch), so a service
+teardown mid-command can never leave a slot locked against future taps — the original Kotlin version
+of this bug made a single mid-run dismissal permanently deaden a slot. Commands are run under
+`withContext(NonCancellable)` when persisting so a torn-down service still lands its state flip, and
+a repaint goes through `requestListeningState` if the process died mid-run; a non-granted Shizuku
+just opens MainActivity on tap (same "tap to set up" pattern as Lock Quick Settings). No custom
+R8/proguard rules: the ten subclasses are manifest-declared, so AGP keeps them automatically, and
+`TileComponentManager` maps `slotIndex` → component by a plain class list (`CustomTile01Service`…
+`CustomTile10Service`), so R8's consistent renaming never breaks the lookup.
 
 ### Shared refresh pattern
 

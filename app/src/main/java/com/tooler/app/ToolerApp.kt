@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
+import com.tooler.app.customtiles.TileComponentManager
 import com.tooler.app.tiles.LockedQsReceiver
 import com.tooler.app.util.ShizukuUtils
 
@@ -35,6 +36,12 @@ class ToolerApp : Application() {
         // Keeps ShizukuUtils' binder cache in sync when the Shizuku server (re)attaches to this
         // process — without it, the cached binder can go stale after the Shizuku app is restarted.
         ShizukuUtils.initialize()
+
+        // Enables all ten custom-tile slot components so System UI offers them in the "add tile"
+        // picker — same unconditional startup step as aShellYou's App.onCreate. An empty slot shows
+        // as "Tile N" (UNAVAILABLE) until the user configures it; a previously-created one needs
+        // its component re-enabled after any update/disable during its lifetime.
+        TileComponentManager.ensureAllEnabled(this)
 
         val filter =
             IntentFilter().apply {
