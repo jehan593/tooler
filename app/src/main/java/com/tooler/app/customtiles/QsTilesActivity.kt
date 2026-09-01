@@ -128,10 +128,9 @@ class QsTilesActivity : ComponentActivity() {
                         ) {
                             item {
                                 Text(
-                                    "Up to 10 custom tiles, each running a shell command you define through " +
-                                        "Shizuku — toggleable or one-shot, with its own icon and label. Setting " +
-                                        "one up pops Android's \"add tile\" dialog; after that it works like any " +
-                                        "other tile in the panel.",
+                                    "Up to 10 custom tiles that run a shell command through Shizuku — " +
+                                        "one-shot or on/off, each with its own icon and label. Once set up, " +
+                                        "it works like any other tile in the panel.",
                                     style = MaterialTheme.typography.bodyMedium
                                 )
                             }
@@ -139,19 +138,17 @@ class QsTilesActivity : ComponentActivity() {
                                 when {
                                     !shizukuAvailable -> ShizukuStatusCard(
                                         status = "Shizuku not running",
-                                        description = "Custom tiles run shell commands as the Shizuku user, so the " +
-                                            "Shizuku app has to be running and this app granted access before any " +
-                                            "tile can do anything. The slots below can still be configured in advance.",
+                                        description = "Custom tiles need the Shizuku app running with access " +
+                                            "granted. You can still set up slots below in the meantime.",
                                         actionLabel = "Open Shizuku",
                                         onAction = { openShizuku() }
                                     )
                                     !shizukuGranted -> ShizukuStatusCard(
                                         status = "Setup needed",
-                                        description = "Shizuku is running but Tooler doesn't have shell access yet — " +
-                                            "grant it below. The same grant already unlocks the Lock Quick Settings " +
-                                            "tile; this one grant covers custom tiles too. The slots below can still " +
-                                            "be configured in advance.",
-                                        actionLabel = "Grant shell access",
+                                        description = "Shizuku is running, but Tooler needs your permission to " +
+                                            "use it. Grant access below — it also unlocks the Lock Quick " +
+                                            "Settings tile.",
+                                        actionLabel = "Grant access",
                                         onAction = { ShizukuUtils.requestPermission() }
                                     )
                                 }
@@ -258,7 +255,7 @@ private fun EmptySlotCard(slotNumber: Int, onClick: () -> Unit) {
             Column(modifier = Modifier.weight(1f)) {
                 Text("Tile $slotNumber", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Empty slot — tap to set up a custom command tile",
+                    "Tap to set up a custom tile",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -370,7 +367,7 @@ private fun TileEditorDialog(
                     Column(modifier = Modifier.weight(1f)) {
                         Text("On/off toggle", style = MaterialTheme.typography.bodyMedium)
                         Text(
-                            "Two commands; tapping alternates between them.",
+                            "Two commands; tapping switches between them.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -383,8 +380,8 @@ private fun TileEditorDialog(
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Initial state", style = MaterialTheme.typography.bodyMedium)
                         Text(
-                            "Whether the tile starts in the on state. For on/off tiles it changes " +
-                                "with every tap; for tap-action tiles it stays fixed as the tile's color.",
+                            "Whether the tile starts on. For on/off tiles it changes with each tap; " +
+                                "for one-shot tiles it stays fixed.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
