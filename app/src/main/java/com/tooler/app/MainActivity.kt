@@ -182,9 +182,8 @@ class MainActivity : ComponentActivity() {
                         ) {
                             item {
                                 Text(
-                                    "Quick Settings tiles that many stock ROMs leave out — add them from the " +
-                                        "Quick Settings panel: pull down twice, tap the pencil/edit icon, then " +
-                                        "drag a tile in.",
+                                    "Extra Quick Settings tiles. To add them: pull down the Quick Settings " +
+                                        "panel twice, tap the pencil icon, and drag a tile in.",
                                     style = MaterialTheme.typography.bodyMedium
                                 )
                             }
@@ -194,9 +193,7 @@ class MainActivity : ComponentActivity() {
                                     status = if (accessibilityEnabled) "Ready" else "Setup needed",
                                     statusTone = if (accessibilityEnabled) StatusTone.SUCCESS else StatusTone.WARNING,
                                     iconRes = R.drawable.ic_screenshot,
-                                    description = "Uses an Accessibility Service to trigger a screenshot — the " +
-                                        "only non-root way to do it from a Quick Settings tile. The same " +
-                                        "service also powers the Lock Screen home-screen shortcut.",
+                                    description = "Takes a screenshot from the Quick Settings panel. No root needed.",
                                     actionLabel = if (accessibilityEnabled) null else "Enable accessibility service",
                                     onAction = if (accessibilityEnabled) null else {
                                         { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
@@ -233,15 +230,14 @@ class MainActivity : ComponentActivity() {
                                         else -> R.drawable.ic_volume_normal
                                     },
                                     description = if (policyAccessGranted) {
-                                        "Cycles Normal → Vibrate → Silent from the tile — same effect as the " +
-                                            "mute icon in Android's own volume panel. Notifications still show " +
-                                            "normally; only their sound and vibration are affected."
+                                        "Cycles Normal, Vibrate, and Silent. Same as the mute icon in " +
+                                            "Android's volume panel — notifications keep showing, only sound " +
+                                            "and vibration change."
                                     } else {
-                                        "Silent needs Do Not Disturb access — that's just Android's gate on " +
-                                            "this API, not Do Not Disturb itself: notifications will keep " +
-                                            "showing normally either way."
+                                        "Silent mode needs a permission. It only affects sound and vibration — " +
+                                            "your notifications keep showing either way."
                                     },
-                                    actionLabel = if (policyAccessGranted) null else "Grant Do Not Disturb access",
+                                    actionLabel = if (policyAccessGranted) null else "Grant access",
                                     onAction = if (policyAccessGranted) null else {
                                         { startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)) }
                                     }
@@ -262,26 +258,18 @@ class MainActivity : ComponentActivity() {
                                         else -> R.drawable.ic_battery_off
                                     },
                                     description = if (writeSecureSettingsGranted) {
-                                        "Toggles Adaptive Charging ↔ Limit to 80% from the tile — the same " +
-                                            "modes as Settings > Battery > Charging optimization on Pixel, " +
-                                            "minus Off (the tile never turns optimization off on its own). " +
-                                            "There's no public Android API for this; Tooler writes the same " +
-                                            "hidden system settings that screen does. Android won't let a " +
-                                            "normal app read those settings back, though, so the status above " +
-                                            "is just the last mode Tooler itself set — if you change it from " +
-                                            "Settings directly, this won't notice until you tap again."
+                                        "Switches between Adaptive Charging and Limit to 80%. It never turns " +
+                                            "charging optimization off on its own. Pixel only."
                                     } else {
-                                        "Pixel only (Android 15 QPR1+), and there's no public API for it — " +
-                                            "Android won't let a normal app request this permission at all, " +
-                                            "so it has to be granted once with a shell command. With Shizuku " +
-                                            "running, grant it right here without a computer; otherwise tap to " +
-                                            "copy the adb command and run it with the phone connected."
+                                        "Pixel only. This needs a one-time shell command to enable. With " +
+                                            "Shizuku running you can grant it right here; otherwise tap to " +
+                                            "copy an adb command for your computer."
                                     },
                                     actionLabel = when {
                                         writeSecureSettingsGranted -> null
-                                        !shizukuAvailable -> "Copy adb grant command"
-                                        !shizukuGranted -> "Grant shell access"
-                                        else -> "Grant WRITE_SECURE_SETTINGS"
+                                        !shizukuAvailable -> "Copy adb command"
+                                        !shizukuGranted -> "Grant access"
+                                        else -> "Grant access"
                                     },
                                     onAction = if (writeSecureSettingsGranted) null else {
                                         {
@@ -301,14 +289,13 @@ class MainActivity : ComponentActivity() {
                                         status = "Setup needed",
                                         statusTone = StatusTone.WARNING,
                                         iconRes = R.drawable.ic_dns_off,
-                                        description = "Toggles Private DNS Automatic ↔ a hostname you set, from " +
-                                            "the tile — same modes as Settings > Network & internet > Private " +
-                                            "DNS. Needs the same WRITE_SECURE_SETTINGS permission as Battery " +
-                                            "Charge Optimization above; a single grant covers both tiles.",
+                                        description = "Toggles Private DNS between Automatic and a hostname you " +
+                                            "set. Needs the same one-time permission as Battery Charge " +
+                                            "Optimization — a single grant covers both.",
                                         actionLabel = when {
-                                            !shizukuAvailable -> "Copy adb grant command"
-                                            !shizukuGranted -> "Grant shell access"
-                                            else -> "Grant WRITE_SECURE_SETTINGS"
+                                            !shizukuAvailable -> "Copy adb command"
+                                            !shizukuGranted -> "Grant access"
+                                            else -> "Grant access"
                                         },
                                         onAction = {
                                             when {
@@ -338,10 +325,9 @@ class MainActivity : ComponentActivity() {
                                             PrivateDnsMode.AUTO -> R.drawable.ic_dns_auto
                                             else -> R.drawable.ic_dns_off
                                         },
-                                        description = "Toggles Automatic ↔ \"$privateDnsHostname\" from the " +
-                                            "tile or here. To use a different hostname, change it in Settings " +
-                                            "> Network & internet > Private DNS — Tooler always follows " +
-                                            "whatever's saved there, live, with nothing of its own to go stale.",
+                                        description = "Switches between Automatic and \"$privateDnsHostname\". " +
+                                            "To change the hostname, edit it in Settings > Network & internet " +
+                                            "> Private DNS.",
                                         actionLabel = if (privateDnsMode == PrivateDnsMode.AUTO) {
                                             "Switch to hostname"
                                         } else {
@@ -370,22 +356,18 @@ class MainActivity : ComponentActivity() {
                                     },
                                     iconRes = R.drawable.ic_locked_qs,
                                     description = if (shizukuGranted) {
-                                        "Collapses the Quick Settings panel while the screen is locked, so it " +
-                                            "can't be pulled down from the lock screen, and brings it back the " +
-                                            "moment you unlock. There's no Android API for this — it runs a " +
-                                            "hidden OS command (cmd statusbar send-disable-flag) as the shell " +
-                                            "user through Shizuku. It only catches the lock/unlock events while " +
-                                            "Tooler's process is alive (see the Background reliability card " +
-                                            "below), and the flag resets on every reboot."
+                                        "Hides the Quick Settings panel while the screen is locked, so it " +
+                                            "can't be pulled down from the lock screen. It resets on every " +
+                                            "reboot, and only works while Tooler's process is alive (see " +
+                                            "Background reliability below)."
                                     } else {
-                                        "Collapses the Quick Settings panel while the screen is locked. Needs " +
-                                            "Shizuku because the only way to do this is a hidden OS command that " +
-                                            "just the shell user may run — no Settings screen or adb grant can " +
-                                            "substitute. Grant it below; the same grant also powers the tile."
+                                        "Hides the Quick Settings panel while the screen is locked. Needs " +
+                                            "Shizuku, because it uses a shell command that only the shell user " +
+                                            "may run. Grant access below."
                                     },
                                     actionLabel = when {
                                         !shizukuAvailable -> "Open Shizuku"
-                                        !shizukuGranted -> "Grant shell access"
+                                        !shizukuGranted -> "Grant access"
                                         lockedQsEnabled -> "Turn off"
                                         else -> "Turn on"
                                     },
@@ -415,14 +397,13 @@ class MainActivity : ComponentActivity() {
                                     },
                                     statusTone = if (shizukuGranted) StatusTone.NEUTRAL else StatusTone.WARNING,
                                     iconRes = R.drawable.ic_terminal,
-                                    description = "Create your own Quick Settings tiles that run any shell command " +
-                                        "through Shizuku — up to 10 slots, each either a one-shot tap or an on/off " +
-                                        "toggle with its own command, icon, and label. Needs the same Shizuku grant " +
-                                        "as Lock Quick Settings; prefix commands with nothing special — they're run " +
-                                        "as the Shizuku user (shell/root depending on how Shizuku itself was started).",
+                                    description = "Create your own Quick Settings tiles that run a shell command " +
+                                        "through Shizuku — up to 10, each a one-shot tap or an on/off toggle " +
+                                        "with its own icon and label. Needs the same Shizuku grant as Lock " +
+                                        "Quick Settings.",
                                     actionLabel = when {
                                         !shizukuAvailable -> "Open Shizuku"
-                                        !shizukuGranted -> "Grant shell access"
+                                        !shizukuGranted -> "Grant access"
                                         else -> "Manage tiles"
                                     },
                                     onAction = {
@@ -439,10 +420,8 @@ class MainActivity : ComponentActivity() {
                                     title = "Background reliability",
                                     status = if (batteryUnrestricted) "Exempted" else "Optimized",
                                     statusTone = if (batteryUnrestricted) StatusTone.SUCCESS else StatusTone.NEUTRAL,
-                                    description = "Optional. Android occasionally kills this app to save memory, " +
-                                        "which is what makes a tile feel slow to respond right after — the next " +
-                                        "tap has to wait for the app to restart first. Excluding it from battery " +
-                                        "optimization makes that far less frequent.",
+                                    description = "Optional. Stops Android from closing the app to save battery, " +
+                                        "which makes tiles respond faster.",
                                     actionLabel = if (batteryUnrestricted) null else "Exclude from battery optimization",
                                     onAction = if (batteryUnrestricted) null else {
                                         {
@@ -536,9 +515,8 @@ private fun PrivateDnsHostnameCard(onSave: (String) -> Unit) {
                 Text("Private DNS", style = MaterialTheme.typography.titleMedium)
             }
             Text(
-                "No hostname saved yet, so the tile has nothing to switch to besides Automatic. " +
-                    "Type your Private DNS provider's hostname (e.g. dns.google) and save it here " +
-                    "once — after that, the tile toggles Automatic ↔ this hostname on its own.",
+                "No hostname saved yet. Type your Private DNS provider's hostname (e.g. dns.google) " +
+                    "and save it — then the tile can switch between Automatic and this hostname.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
