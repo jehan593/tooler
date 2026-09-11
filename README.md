@@ -17,9 +17,10 @@ live state on every tap.
 - **Volume Mode** — cycle Normal, Vibrate, and Silent.
 - **Battery Charge Optimization** — switch between Adaptive Charging and Limit to 80%. Pixel only.
 - **Private DNS** — switch between Automatic and a hostname you set.
-- **Lock Quick Settings** — hide Quick Settings while the screen is locked. Needs Shizuku.
 - **Custom tiles** — ten tiles you make, each running a shell command via Shizuku.
-- **Lock Screen shortcut** — a home-screen icon that locks the screen instantly.
+
+There's also a **Lock Quick Settings** toggle in the app (hide Quick Settings while the screen is
+locked, needs Shizuku), and a home-screen **Lock Screen** shortcut that locks the screen instantly.
 
 ## Permissions
 
@@ -32,7 +33,7 @@ A few tiles need one-time setup:
   ```sh
   adb shell pm grant com.tooler.app android.permission.WRITE_SECURE_SETTINGS
   ```
-- **Shizuku** — Lock Quick Settings and Custom tiles ([shizuku.rikka.app](https://shizuku.rikka.app/)).
+- **Shizuku** — the Lock Quick Settings toggle and Custom tiles ([shizuku.rikka.app](https://shizuku.rikka.app/)).
 
 ## Build
 
