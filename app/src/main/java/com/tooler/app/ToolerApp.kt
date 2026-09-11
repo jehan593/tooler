@@ -1,30 +1,23 @@
 package com.tooler.app
 
 import android.app.Application
+import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
+import android.os.PowerManager
 import com.tooler.app.customtiles.TileComponentManager
 import com.tooler.app.tiles.LockedQsReceiver
 import com.tooler.app.util.ShizukuUtils
+import com.tooler.app.util.StatusBarFlags
 
 /**
- * Injected as `android:name=".ToolerApp"` so [LockedQsReceiver] has somewhere stable to live.
- *
- * The receiver must be registered dynamically rather than from the manifest: `ACTION_SCREEN_OFF`
- * and `ACTION_USER_PRESENT` are protected system broadcasts, and Android 8+ manifest-registered
- * receivers can't receive implicit broadcasts at all — these two included (essentials registers its
- * equivalent `SecurityReceiver` exactly this way, in `EssentialsApp.onCreate`). Application is the
- * right host because it's the one component guaranteed to be constructed whenever *any* of this
- * app's components starts (tiles, the shortcut, MainActivity), and it outlives them as long as the
- * process does.
- *
- * Downside inherited from that design (documented on [LockedQsReceiver]): dynamically-registered
- * receivers die with the process. If Android kills Tooler, screen-off stops being watched until the
- * next process start, and since the disable flag itself also resets at every reboot, an app that's
- * been killed sits idle until something brings it back — same behavior as essentials, same
- * mitigation (the "Background reliability" card).
+ * Hosts the dynamically-registered [LockedQsReceiver]. It can't be manifest-registered: Android 8+
+ * forbids manifest receivers for the protected `ACTION_SCREEN_OFF`/`ACTION_USER_PRESENT` broadcasts.
+ * `Application` is the one component guaranteed to exist whenever any tile, shortcut, or activity
+ * starts. A killed process means screen-off stops being watched, and the flag resets on reboot —
+ * same trade-off as the reference implementation, mitigated by the "Background reliability" card.
  */
 class ToolerApp : Application() {
 
@@ -33,14 +26,11 @@ class ToolerApp : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        // Keeps ShizukuUtils' binder cache in sync when the Shizuku server (re)attaches to this
-        // process — without it, the cached binder can go stale after the Shizuku app is restarted.
+        // Keeps ShizukuUtils' binder cache in sync when the Shizuku server (re)attaches.
         ShizukuUtils.initialize()
 
-        // Enables all ten custom-tile slot components so System UI offers them in the "add tile"
-        // picker — same unconditional startup step as aShellYou's App.onCreate. An empty slot shows
-        // as "Tile N" (UNAVAILABLE) until the user configures it; a previously-created one needs
-        // its component re-enabled after any update/disable during its lifetime.
+        // Enables all ten custom-tile slot components so System UI offers them in the add-tile
+        // picker; an empty slot shows grey until configured.
         TileComponentManager.ensureAllEnabled(this)
 
         val filter =
@@ -53,6 +43,18 @@ class ToolerApp : Application() {
         } else {
             @Suppress("DEPRECATION")
             registerReceiver(lockedQsReceiver, filter)
+        }
+
+        // If the process was killed while armed, the flag can linger in SystemUI with no live receiver
+        // to lift it. Clearing it here on restart (screen on and unlocked) unsticks the panel.
+        clearStaleDisableFlagIfUnlocked()
+    }
+
+    private fun clearStaleDisableFlagIfUnlocked() {
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+        if (powerManager.isInteractive && !keyguardManager.isKeyguardLocked()) {
+            StatusBarFlags.clearAll()
         }
     }
 

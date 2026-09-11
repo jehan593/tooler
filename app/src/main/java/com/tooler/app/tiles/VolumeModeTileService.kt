@@ -1,5 +1,6 @@
 package com.tooler.app.tiles
 
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -8,17 +9,12 @@ import android.media.AudioManager
 import android.os.Build
 import android.provider.Settings
 import android.service.quicksettings.Tile
-import android.service.quicksettings.TileService
 import com.tooler.app.R
 import com.tooler.app.util.hasNotificationPolicyAccess
 import com.tooler.app.util.setSubtitleCompat
+import com.tooler.app.util.StatusNotifier
 
-class VolumeModeTileService : TileService() {
-
-    override fun onStartListening() {
-        super.onStartListening()
-        refresh()
-    }
+class VolumeModeTileService : BaseTileService() {
 
     override fun onClick() {
         super.onClick()
@@ -28,16 +24,17 @@ class VolumeModeTileService : TileService() {
             AudioManager.RINGER_MODE_VIBRATE -> AudioManager.RINGER_MODE_SILENT
             else -> AudioManager.RINGER_MODE_NORMAL
         }
-        // Only the transition into silent is gated behind Do Not Disturb policy access on modern
-        // Android — Normal and Vibrate need nothing beyond what every app already has.
+        // Only Silent needs Do Not Disturb access; Normal and Vibrate need nothing extra.
         if (next == AudioManager.RINGER_MODE_SILENT && !hasNotificationPolicyAccess(this)) {
             openNotificationPolicySettings()
         } else {
             audioManager.ringerMode = next
+            StatusNotifier.notifyChanged()
         }
         refresh()
     }
 
+    @SuppressLint("StartActivityAndCollapseDeprecated")
     private fun openNotificationPolicySettings() {
         val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
         if (Build.VERSION.SDK_INT >= 34) {
@@ -49,7 +46,7 @@ class VolumeModeTileService : TileService() {
         }
     }
 
-    private fun refresh() {
+    override fun refresh() {
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         qsTile?.apply {
             val (iconRes, label) = when (audioManager.ringerMode) {
@@ -59,9 +56,7 @@ class VolumeModeTileService : TileService() {
             }
             icon = Icon.createWithResource(this@VolumeModeTileService, iconRes)
             setSubtitleCompat(label)
-            // Unlike Screenshot, this tile always reflects a real current state — Normal isn't
-            // "off" any more than Vibrate or Silent is, they're three positions of the same
-            // switch — so it stays STATE_ACTIVE (colored) in all three, not just two of them.
+            // Three positions of one switch — always STATE_ACTIVE, matching that. Not "on" vs "off".
             state = Tile.STATE_ACTIVE
             updateTile()
         }

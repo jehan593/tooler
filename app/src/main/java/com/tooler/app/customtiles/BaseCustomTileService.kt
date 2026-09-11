@@ -3,6 +3,7 @@ package com.tooler.app.customtiles
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Intent
 import android.graphics.drawable.Icon
@@ -12,6 +13,7 @@ import android.service.quicksettings.TileService
 import androidx.core.app.NotificationCompat
 import com.tooler.app.MainActivity
 import com.tooler.app.R
+import com.tooler.app.tiles.BaseTileService
 import com.tooler.app.util.ShizukuUtils
 import com.tooler.app.util.setSubtitleCompat
 import kotlinx.coroutines.CoroutineScope
@@ -23,12 +25,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * Per-slot guard against duplicate taps. aShellYou's `TileExecutionManager` keeps a
- * `runningJobs` map; with no coroutine framework here the same job is done with a plain set —
- * a tile already executing ignores a second tap until it finishes. [begin] is always paired with
- * [end] in a `finally` (see [BaseCustomTileService.onClick]) so a slot can never stay locked.
- */
+/** Per-slot guard against duplicate taps — a tile already executing ignores a second tap. */
 object CustomTileRunner {
     private val runningSlots = java.util.concurrent.ConcurrentHashMap.newKeySet<Int>()
 
@@ -43,26 +40,13 @@ object CustomTileRunner {
 }
 
 /**
- * Base class for the ten pre-declared custom tile slots — the direct port of aShellYou's
- * `BaseTileService`. Each concrete subclass owns one fixed [slotIndex] (0-9) and this class binds
- * whichever `CustomTileConfig` currently occupies that slot to the QS tile:
- *
- * - `onStartListening()` paints the tile: configured slots get their label/icon/subtitle/state,
- *   empty slots render "Tile N" with `STATE_UNAVAILABLE` (QS tiles can't be removed from the panel
- *   programmatically, so an unclaimed slot just goes grey).
- * - `onClick()` runs the config's command through `ShizukuUtils` (shell access is the whole point
- *   of this feature — custom tiles can't do anything any normal app can already do, so every tap
- *   is a privileged command). If shell access was never granted, tapping opens MainActivity for
- *   the grant flow instead of silently failing — same "tap to set up, don't silently fail" pattern
- *   as `LockedQsTileService`. Toggleable tiles only flip their persisted `isActive` when the
- *   command actually succeeds, exactly like aShellYou's executor; a failed command surfaces a
- *   notification with the tile's name instead of dying silently.
- *
- * State semantics match aShellYou: the tile renders `Tile.STATE_ACTIVE` whenever its stored
- * `isActive` is true — for toggleable tiles that's the live on/off, for static tiles it's the
- * fixed "initial state" the user picked at creation (there's no separate "always inactive" look).
+ * Base class for the ten custom tile slots. Each subclass owns one fixed [slotIndex] and this class
+ * binds whichever config occupies that slot to the QS tile: `onStartListening()` paints it (empty
+ * slots render "Tile N" grey), `onClick()` runs the config's command through [ShizukuUtils].
+ * Tapping without shell access opens MainActivity for the grant flow; a failed command surfaces a
+ * notification. Toggleable tiles only flip their stored `isActive` when the command succeeds.
  */
-abstract class BaseCustomTileService : TileService() {
+abstract class BaseCustomTileService : BaseTileService() {
 
     /** Fixed slot index this service instance owns (0-9). */
     abstract val slotIndex: Int
@@ -80,11 +64,6 @@ abstract class BaseCustomTileService : TileService() {
         super.onDestroy()
     }
 
-    override fun onStartListening() {
-        super.onStartListening()
-        refresh()
-    }
-
     override fun onClick() {
         super.onClick()
 
@@ -96,9 +75,7 @@ abstract class BaseCustomTileService : TileService() {
         val scope = serviceScope ?: return
         if (!CustomTileRunner.begin(slotIndex)) return
 
-        // Immediate "something happened" feedback — the tile flips to a Running… label right away
-        // instead of only repainting when the command finishes (same tap-reads-as-responsible idea
-        // as aShellYou's running-state flow).
+        // Immediate feedback: flip to "Running…" right away instead of after the command finishes.
         paintRunningState()
         val tileName = config.name
 
@@ -114,16 +91,10 @@ abstract class BaseCustomTileService : TileService() {
                 outcome = ShizukuUtils.runCommandForOutput(command)
                 success = outcome.exitCode == 0
             } finally {
-                // Always release the slot, even if the service was destroyed mid-run. destroy()
-                // cancels serviceScope, and a cancel left a fresh launch dead at the gate — the
-                // old code released the lock only from a post-cancel coroutine, so a single
-                // mid-run teardown locked the slot forever and every tap after silently no-oped.
+                // Always release the slot, even if the service was destroyed mid-run.
                 CustomTileRunner.end(slotIndex)
             }
-            // Persist the toggle only on success, same as aShellYou — a failed command shouldn't
-            // leave the tile claiming a state it never reached. NonCancellable: if the service was
-            // destroyed while the command ran, the flip still lands so the next onStartListening
-            // paints the right state.
+            // Flip state only on success; NonCancellable so a destroyed service still lands the flip.
             withContext(NonCancellable) {
                 if (success && config.isToggleable) {
                     CustomTilePrefs.save(this@BaseCustomTileService, config.copy(isActive = !config.isActive))
@@ -131,9 +102,7 @@ abstract class BaseCustomTileService : TileService() {
                     notifyFailure(tileName, outcome)
                 }
             }
-            // Repaint. If the process is still alive and bound, refresh() applies immediately; if
-            // the service got torn down mid-run, requestListeningState makes System UI re-listen on
-            // next panel open, which reads the just-flipped config.
+            // Repaint — immediately if alive, otherwise on the next panel open.
             if (scope.isActive) {
                 scope.launch { refresh() }
             } else {
@@ -145,8 +114,7 @@ abstract class BaseCustomTileService : TileService() {
         }
     }
 
-    /** Flips the tile to a Running… label for the duration of a command run (paint-only; [state] is
-     *  left alone so the on/off color doesn't flash before the real result is known). */
+    /** Shows a Running… label while a command runs, without pre-flipping the on/off color. */
     private fun paintRunningState() {
         val tile = qsTile ?: return
         tile.label = "Running…"
@@ -154,13 +122,8 @@ abstract class BaseCustomTileService : TileService() {
         tile.updateTile()
     }
 
-    /**
-     * Surfaces a failed command the same way aShellYou's `TileNotificationHelper` does — a failed
-     * tap is otherwise indistinguishable from a dead tile. Default-importance so the failure is
-     * actually noticed; tapping it opens the app. The notification carries the shell's own output
-     * and exit code rather than a generic "failed" so the reason is visible at a glance (a missing
-     * binary, a permission error, a root-only command — all readable from the error line).
-     */
+    /** Surfaces a failed command as a notification — a failed tap is otherwise indistinguishable
+     *  from a dead tile. Carries the shell's error line and exit code so the reason is visible. */
     private fun notifyFailure(tileName: String, outcome: ShizukuUtils.CommandOutcome?) {
         val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         manager.createNotificationChannel(
@@ -207,6 +170,7 @@ abstract class BaseCustomTileService : TileService() {
         manager.notify(slotIndex + 1, notification)
     }
 
+    @SuppressLint("StartActivityAndCollapseDeprecated")
     private fun openAppForSetup() {
         val intent = Intent(this, MainActivity::class.java)
         if (Build.VERSION.SDK_INT >= 34) {
@@ -218,7 +182,7 @@ abstract class BaseCustomTileService : TileService() {
         }
     }
 
-    private fun refresh() {
+    override fun refresh() {
         val tile = qsTile ?: return
         val config = CustomTilePrefs.load(this, slotIndex)
 
@@ -234,8 +198,7 @@ abstract class BaseCustomTileService : TileService() {
         tile.icon = Icon.createWithResource(this, CustomTileIcons.res(config.iconId))
         val running = CustomTileRunner.isRunning(slotIndex)
         tile.label = if (running) "Running…" else config.name
-        // isActive drives the color for both tile kinds, matching aShellYou: toggleable tiles show
-        // their live state, static tiles show the fixed initial state the user chose at creation.
+        // isActive drives the color, matching aShellYou: static tiles show their fixed initial state.
         tile.state = if (!running && config.isActive) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
         tile.setSubtitleCompat(if (running) "Running…" else config.currentSubtitle)
         tile.updateTile()

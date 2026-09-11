@@ -5,31 +5,19 @@ import org.json.JSONException
 import org.json.JSONObject
 
 /**
- * Number of user-programmable Quick Settings tile slots. Quick Settings tiles cannot be created
- * dynamically — a `TileService` must exist in the manifest for System UI to know about it at all.
- * So, exactly like aShellYou, Tooler pre-declares [CUSTOM_TILE_SLOT_COUNT] generic tile services
- * (`CustomTile01Service`..`CustomTile10Service`) and "creating" a tile means claiming one of these
- * fixed slots with a config — see `TileComponentManager` and `BaseCustomTileService`.
+ * Number of user-programmable tile slots. QS tiles can't be created dynamically — a `TileService`
+ * must exist in the manifest — so Tooler pre-declares [CUSTOM_TILE_SLOT_COUNT] generic services
+ * and "creating" a tile means claiming one of these fixed slots.
  */
 const val CUSTOM_TILE_SLOT_COUNT = 10
 
 /**
- * Everything a user-created tile is: which fixed slot (0-9) it lives in, what it looks like (label,
- * icon), and — mirroring aShellYou's `TileActiveState` — how it behaves when tapped.
+ * What a user-created tile is: which slot it lives in, its label/icon, and how taps behave.
  *
- * [isActive] is the tile's *initial state*, picked at creation (aShellYou's "Initial State"
- * switch), and has different meaning per tile kind:
- *
- * - **Toggleable tiles** ([isToggleable] = true) behave as an on/off switch: tapping while
- *   [isActive] runs [offCommand] (to turn the feature off) and flips the stored state on success;
- *   tapping while inactive runs [onCommand] instead. [isActive] is simply where the switch starts.
- * - **Static ("tap action") tiles** ([isToggleable] = false) only ever run [onCommand] on every
- *   tap and never touch [isActive], which stays fixed at its initial value and is *displayed* as
- *   the tile's [Tile.STATE_ACTIVE]/INACTIVE color exactly like aShellYou does.
- *
- * The tile draws [onSubtitle] ([offSubtitle] when inactive) — for static tiles [offSubtitle] is
- * mirrored to [onSubtitle] at save time so the subtitle doesn't dangle, same as aShellYou's
- * `activeTileSubtitle`-for-both behavior.
+ * [isActive] is the initial state, picked at creation. For toggleable tiles it becomes the live
+ * on/off (tapping runs [offCommand]/[onCommand] and flips it on success); for static tiles it's a
+ * fixed value that's only displayed as tile color, never changed by taps. Static tiles also get
+ * [offSubtitle] mirrored to [onSubtitle] at save time so there's no dangling subtitle.
  */
 data class CustomTileConfig(
     val slotIndex: Int,
@@ -42,19 +30,15 @@ data class CustomTileConfig(
     val onSubtitle: String,
     val offSubtitle: String,
 ) {
-    /** Slot number as a user sees it (1-based), matching the "Tile N" labels and aShellYou's IDs. */
+    /** Slot number as a user sees it (1-based), matching the "Tile N" labels. */
     val id: Int get() = slotIndex + 1
 
     val currentSubtitle: String get() = if (isActive) onSubtitle else offSubtitle
 }
 
 /**
- * The store for user-created tile definitions — the third deliberate exception to "no persisted
- * state" in this app, after `ChargingModePrefs`/`LockedQsPrefs`. Unlike every built-in tile, a
- * custom tile has no system value it mirrors: the definition *is* the feature, authored by the
- * user, so it has to live somewhere. Stored as one `JSONObject` string per slot in a plain
- * `SharedPreferences` (the only serialization this repo needs — no DataStore/Room, same "bare
- * prefs" pattern as the other two exceptions; `org.json` comes from the Android framework).
+ * Stores user-created tile definitions — one `JSONObject` string per slot in a plain
+ * `SharedPreferences` (no DataStore/Room; `org.json` comes from the Android framework).
  */
 object CustomTilePrefs {
     private const val PREFS_NAME = "custom_qs_tiles"

@@ -7,16 +7,10 @@ import com.tooler.app.util.StatusBarFlags
 const val LOCKED_QS_REQUESTER_ID = "LockedQs"
 
 /**
- * The Lock Quick Settings toggle. Keeps a single `SharedPreferences` boolean — the second
- * deliberate exception to "never persist local state" in this codebase, after `ChargingModePrefs`,
- * and for an even more fundamental reason: *there is no live system value to read at all*. The
- * disable flag this tile manipulates lives entirely inside SystemUI (it's `StatusBarManager`'s
- * `DISABLE2_QUICK_SETTINGS` bit over a binder, not a settings key), is wiped on every reboot, and
- * is only ever set momentarily between screen-off and the next unlock. Something has to remember the
- * user's actual intent — "keep QS off the lock screen" — across process restarts and reboots, or the
- * SCREEN_OFF receiver (see [LockedQsReceiver]) would have no way to know it should re-apply the flag
- * on the next lock. So this pref is not a stale cache of a readable system value like Private DNS's
- * hostname; it *is* the source of truth, written by this app, read by this app.
+ * The Lock Quick Settings toggle. There is no live system value to read — the disable flag lives
+ * inside SystemUI, resets on reboot, and only exists between screen-off and unlock — so a
+ * `SharedPreferences` boolean remembers the user's intent across process restarts and reboots, or
+ * the screen-off receiver would have no way to know it should re-apply the flag on the next lock.
  */
 private const val PREFS_NAME = "locked_qs"
 private const val KEY_ENABLED = "enabled"
@@ -37,11 +31,9 @@ private object LockedQsPrefs {
 fun isLockedQsEnabled(context: Context): Boolean = LockedQsPrefs.read(context)
 
 /**
- * Flips the toggle. Turning *off* restores the QS panel immediately (the flag may be applied right
- * now if the screen is currently locked), mirroring essentials' `setScreenLockedSecurityEnabled`.
- * Turning *on* deliberately does nothing right away except record the intent: the disable flag only
- * makes sense while the screen is actually locked, and the next [Intent.ACTION_SCREEN_OFF] applies
- * it — same "apply on lock, clear on unlock" behavior as the reference implementation.
+ * Flips the toggle. Turning off restores the panel immediately (in case the flag is applied right
+ * now); turning on only records the intent — the next screen-off applies it, the next unlock clears
+ * it.
  */
 fun setLockedQsEnabled(context: Context, enabled: Boolean) {
     LockedQsPrefs.write(context, enabled)

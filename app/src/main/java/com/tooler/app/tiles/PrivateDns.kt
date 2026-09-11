@@ -4,16 +4,9 @@ import android.content.Context
 import android.provider.Settings
 
 /**
- * `Settings.Global` keys behind Settings > Network & internet > Private DNS. Same undocumented
- * category as [ChargeOptimization]'s `Settings.Secure` writes — no `BatteryManager`-style public
- * API, `WRITE_SECURE_SETTINGS` required to write (see [com.tooler.app.util.hasWriteSecureSettings])
- * — but **unlike** those keys, `Settings.Global.getString` on these two is not gated on read the
- * way `adaptive_charging_enabled`/`charge_optimization_mode` are: they aren't `@hide`-restricted to
- * system apps, so this app can read live values back with no local cache at all. Confirmed by
- * [flashsphere/private-dns-qs](https://github.com/flashsphere/private-dns-qs) and its upstream
- * [joshuawolfsohn/Private-DNS-Quick-Tile](https://github.com/joshuawolfsohn/Private-DNS-Quick-Tile),
- * both of which read these same two keys unconditionally with no special-cased permission or
- * `testOnly` manifest flag.
+ * The `Settings.Global` keys behind Settings > Network & internet > Private DNS. Writing needs
+ * WRITE_SECURE_SETTINGS (same as ChargeOptimization), but unlike those keys these two can be read
+ * back by any app — so nothing about Private DNS state is ever cached here.
  */
 private const val PRIVATE_DNS_MODE = "private_dns_mode"
 private const val PRIVATE_DNS_SPECIFIER = "private_dns_specifier"
@@ -38,17 +31,10 @@ fun currentPrivateDnsHostname(context: Context): String? =
 
 /**
  * Toggles Automatic <-> the hostname already saved in [PRIVATE_DNS_SPECIFIER] — this app never
- * invents a hostname of its own; it only switches modes using whatever is already there, whether
- * that was set from Android's own Private DNS screen or from [setPrivateDnsHostname] below. `Off`
- * is deliberately not a step this toggle can reach (same reasoning as Battery Charge
- * Optimization's excluded `Off` — see `advanceChargingMode()`'s doc in ChargeOptimization.kt): from
- * `Off` the tile moves to `Auto` first, same as from `Hostname`, so the tap target is always
- * exactly one of the two real toggle positions.
- *
- * Returns false — the "user not set" case this needs to handle — when the next step would be
- * `Hostname` but [currentPrivateDnsHostname] is null. Callers should route to
- * [com.tooler.app.MainActivity]'s Private DNS card, which is the only place in this app that can
- * prompt for a hostname to type in.
+ * invents a hostname itself. Off isn't reachable from here (same reasoning as Battery Charge
+ * Optimization): from Off the toggle moves to Automatic first. Returns false — the "user not set"
+ * case — when the next step needs a hostname but none is saved; callers should open the app's
+ * Private DNS card, the one place a hostname can be typed.
  */
 fun togglePrivateDnsMode(context: Context): Boolean {
     val next = if (currentPrivateDnsMode(context) == PrivateDnsMode.AUTO) {
@@ -65,11 +51,7 @@ fun togglePrivateDnsMode(context: Context): Boolean {
     }
 }
 
-/**
- * Saves a new hostname and switches straight to hostname mode. Used only by MainActivity's Private
- * DNS card — the tile itself has no UI to type one in, so this is how the "user not set" scenario
- * gets resolved the first time.
- */
+/** Saves a new hostname and switches to hostname mode. Used by MainActivity's Private DNS card. */
 fun setPrivateDnsHostname(context: Context, hostname: String): Boolean {
     val trimmed = hostname.trim()
     if (trimmed.isEmpty()) return false
