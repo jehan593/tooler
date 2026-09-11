@@ -7,7 +7,7 @@
     <string name="tile_battery_charge">Battery Charge Optimization</string>
     <string name="tile_private_dns">Private DNS</string>
     <string name="tile_locked_qs">Lock Quick Settings</string>
-    <string name="accessibility_service_description">Lets the Screenshot Quick Settings tile trigger a screenshot and the Lock Screen shortcut lock the device. Tooler does not read screen content — this service is used solely to invoke the system\'s take-screenshot and lock-screen actions.</string>
+    <string name="accessibility_service_description">Powers the Screenshot tile and Lock Screen shortcut. Tooler never reads screen content.</string>
     <string name="lock_screen_shortcut_label">Lock Screen</string>
     <string name="lock_screen_shortcut_setup_needed">Enable Tooler\'s accessibility service to lock the screen from this shortcut</string>
     <!-- The ten pre-declared custom tile slots (see customtiles/). Android shows these in the
@@ -23,4 +23,6 @@
     <string name="custom_tile_9">Tile 9</string>
     <string name="custom_tile_10">Tile 10</string>
     <string name="qs_tiles_activity_title">Custom tiles</string>
+    <string name="tile_editor_activity_title">Custom tile</string>
+    <string name="settings_activity_title">Settings</string>
 </resources>

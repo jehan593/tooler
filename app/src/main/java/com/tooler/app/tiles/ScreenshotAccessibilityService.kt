@@ -4,17 +4,14 @@ import android.accessibilityservice.AccessibilityService
 import android.content.ComponentName
 import android.service.quicksettings.TileService
 import android.view.accessibility.AccessibilityEvent
+import com.tooler.app.util.StatusNotifier
 
 /**
- * Deliberately does nothing with accessibility events or window content — it exists purely so
- * [ScreenshotTileService] has a bound, system-trusted caller for performGlobalAction
- * (GLOBAL_ACTION_TAKE_SCREENSHOT), the only non-root way to trigger a screenshot from outside an
- * app with an active window. `res/xml/accessibility_service_config.xml` reflects that: no event
- * types, no window content, no gesture capability.
- *
- * [com.tooler.app.shortcuts.LockScreenShortcutActivity] also calls through [instance] for
- * GLOBAL_ACTION_LOCK_SCREEN — same trusted-caller problem, same solution, so it reuses this
- * service rather than standing up a second one just for one more global action.
+ * Does nothing with accessibility events or screen content — it exists purely so the Screenshot
+ * tile has a system-trusted caller for `performGlobalAction(GLOBAL_ACTION_TAKE_SCREENSHOT)`, the
+ * only non-root way to take a screenshot externally. The Lock Screen shortcut reuses it for
+ * `GLOBAL_ACTION_LOCK_SCREEN` — a second service for one more action isn't worth a second entry in
+ * Settings > Accessibility.
  */
 class ScreenshotAccessibilityService : AccessibilityService() {
 
@@ -22,6 +19,7 @@ class ScreenshotAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         instance = this
         requestTileRefresh()
+        StatusNotifier.notifyChanged()
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {}
@@ -31,11 +29,11 @@ class ScreenshotAccessibilityService : AccessibilityService() {
     override fun onUnbind(intent: android.content.Intent?): Boolean {
         instance = null
         requestTileRefresh()
+        StatusNotifier.notifyChanged()
         return super.onUnbind(intent)
     }
 
-    // Nudges the tile to redraw immediately after the user flips the accessibility toggle in
-    // Settings, rather than waiting for the QS panel to next be pulled down.
+    // Repaints the tile right after the user flips the accessibility toggle in Settings.
     private fun requestTileRefresh() {
         TileService.requestListeningState(
             applicationContext, ComponentName(applicationContext, ScreenshotTileService::class.java)

@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Three tiles in a row (the app's namesake), kept within the ~66dp adaptive-icon safe zone -->
+<!-- Four tiles in a 2x2 grid (the app's namesake). Block spans x=34..74, y=34..74 on the 108
+     viewport — a 40dp square centered in the canvas, so the corners stay well inside the launcher's
+     circular mask (outer tile corners sit ~28dp from the center vs. the ~33dp inscribed-safe radius).
+     Diagonal pair filled (frost), the other two outlined so it reads as a grid of toggles. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -7,8 +10,20 @@
     android:viewportHeight="108">
     <path
         android:fillColor="#88C0D0"
-        android:pathData="
-            M28,46 L38,46 L41,49 L41,59 L38,62 L28,62 L25,59 L25,49 Z
-            M49,46 L59,46 L62,49 L62,59 L59,62 L49,62 L46,59 L46,49 Z
-            M70,46 L80,46 L83,49 L83,59 L80,62 L70,62 L67,59 L67,49 Z" />
+        android:pathData="M39,34 H47 A5,5 0 0 1 52,39 V47 A5,5 0 0 1 47,52 H39 A5,5 0 0 1 34,47 V39 A5,5 0 0 1 39,34 Z" />
+    <path
+        android:fillColor="#88C0D0"
+        android:pathData="M61,56 H69 A5,5 0 0 1 74,61 V69 A5,5 0 0 1 69,74 H61 A5,5 0 0 1 56,69 V61 A5,5 0 0 1 61,56 Z" />
+    <path
+        android:fillColor="#88C0D0"
+        android:pathData="M61,34 H69 A5,5 0 0 1 74,39 V47 A5,5 0 0 1 69,52 H61 A5,5 0 0 1 56,47 V39 A5,5 0 0 1 61,34 Z" />
+    <path
+        android:fillColor="#2E3440"
+        android:pathData="M61,36 H69 A3,3 0 0 1 72,39 V47 A3,3 0 0 1 69,50 H61 A3,3 0 0 1 58,47 V39 A3,3 0 0 1 61,36 Z" />
+    <path
+        android:fillColor="#88C0D0"
+        android:pathData="M39,56 H47 A5,5 0 0 1 52,61 V69 A5,5 0 0 1 47,74 H39 A5,5 0 0 1 34,69 V61 A5,5 0 0 1 39,56 Z" />
+    <path
+        android:fillColor="#2E3440"
+        android:pathData="M39,58 H47 A3,3 0 0 1 50,61 V69 A3,3 0 0 1 47,72 H39 A3,3 0 0 1 36,69 V61 A3,3 0 0 1 39,58 Z" />
 </vector>

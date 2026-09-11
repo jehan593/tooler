@@ -1,43 +1,37 @@
 package com.tooler.app.tiles
 
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Intent
 import android.graphics.drawable.Icon
 import android.os.Build
 import android.service.quicksettings.Tile
-import android.service.quicksettings.TileService
 import com.tooler.app.MainActivity
 import com.tooler.app.R
 import com.tooler.app.util.hasWriteSecureSettings
 import com.tooler.app.util.setSubtitleCompat
+import com.tooler.app.util.StatusNotifier
 
 /**
- * Toggles Adaptive Charging <-> Limit to 80% — see ChargeOptimization.kt for what those actually
- * write, and for why this tracks the last mode *it wrote* rather than reading the system's live
- * value back (reading is blocked for a normal app; only writing works). `Off` is deliberately not
- * a step in that cycle (see `advanceChargingMode`'s doc) — it only ever shows here as the
- * pre-first-tap default, before this app has written anything. Unlike Volume Mode, Off reads as
- * "optimization disabled" rather than a third equally-valid position, so only Adaptive
- * Charging/Limit to 80% paint the tile STATE_ACTIVE; Off and the "Setup needed"
- * (WRITE_SECURE_SETTINGS not granted) case both stay STATE_INACTIVE.
+ * Toggles Adaptive Charging <-> Limit to 80% — see ChargeOptimization.kt for what that writes and
+ * why the tile tracks the last mode it wrote rather than reading it back (a normal app can write
+ * but not read these keys). Off is not part of the cycle; it only shows as the pre-first-tap
+ * default or when WRITE_SECURE_SETTINGS isn't granted.
  */
-class BatteryChargeTileService : TileService() {
-
-    override fun onStartListening() {
-        super.onStartListening()
-        refresh()
-    }
+class BatteryChargeTileService : BaseTileService() {
 
     override fun onClick() {
         super.onClick()
         if (hasWriteSecureSettings(this)) {
             advanceChargingMode(this)
+            StatusNotifier.notifyChanged()
         } else {
             openAppForSetup()
         }
         refresh()
     }
 
+    @SuppressLint("StartActivityAndCollapseDeprecated")
     private fun openAppForSetup() {
         val intent = Intent(this, MainActivity::class.java)
         if (Build.VERSION.SDK_INT >= 34) {
@@ -49,7 +43,7 @@ class BatteryChargeTileService : TileService() {
         }
     }
 
-    private fun refresh() {
+    override fun refresh() {
         qsTile?.apply {
             if (!hasWriteSecureSettings(this@BatteryChargeTileService)) {
                 state = Tile.STATE_INACTIVE

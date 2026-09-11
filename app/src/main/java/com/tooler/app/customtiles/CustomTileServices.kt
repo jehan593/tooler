@@ -1,15 +1,8 @@
 package com.tooler.app.customtiles
 
-/**
- * The ten pre-declared custom Quick Settings tile slots — one per manifest `<service>` entry
- * (see `CustomTileNNService` below and the manifest). aShellYou wraps the same ten classes in Hilt
- * and modules; there's no DI here, so they're plain one-liners over [BaseCustomTileService]. Each
- * owns a fixed [BaseCustomTileService.slotIndex]; `CustomTilePrefs` maps whichever user config
- * lives in that slot onto the tile at runtime.
- *
- * They're all in one file rather than one-per-file because each body is a single line — grouping
- * them keeps the slot numbering obvious at a glance, the same reason aShellYou names them Tile01..10.
- */
+/** The ten pre-declared custom tile slots, one per manifest `<service>` entry. Each is a one-line
+ *  subclass over [BaseCustomTileService] owning a fixed [BaseCustomTileService.slotIndex]; grouped
+ *  in one file so the slot numbering is obvious at a glance. */
 class CustomTile01Service : BaseCustomTileService() {
     override val slotIndex = 0
 }

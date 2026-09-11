@@ -9,26 +9,17 @@ import android.os.Build
 import android.service.quicksettings.TileService
 
 /**
- * The system-facing half of "creating" a custom tile — the direct port of aShellYou's
- * `TileComponentManager` (there, a Hilt `@Singleton`; here a plain object, since Tooler has no
- * dependency injection). A tile doesn't exist from System UI's perspective until its manifest
- * component is enabled and the user adds it to their panel, and that plumbing is the whole trick
- * this feature is about:
+ * The system-facing half of creating a custom tile. A tile doesn't exist for System UI until its
+ * manifest component is enabled and the user adds it to the panel:
  *
- * - `setComponentEnabled` is the programmatic side of the QS "add tile" editor — the app must
- *   enable (or re-enable) the slot's service component before System UI will offer it at all.
- * - `promptAddTile` fires the system's own "Add <label> tile to Quick Settings?" dialog
- *   (`StatusBarManager.requestAddTileService`, Android 13+; on older versions there's no such
- *   dialog, so the tile just appears in the QS editor for the user to drag in manually).
- * - `refreshTile` asks System UI to re-listen to a slot so its label/icon/state repaint after an
- *   update without the panel having to close and reopen.
- * - `ensureAllEnabled` runs once at app start (see `ToolerApp`) so every slot is always pickable —
- *   same unconditional startup step as aShellYou's `App.onCreate`.
+ * - [setComponentEnabled] enables a slot's service component so System UI offers it at all.
+ * - [promptAddTile] fires the system's own add-to-panel dialog (API 33+; older systems just show
+ *   the enabled component in the QS editor).
+ * - [refreshTile] nudges System UI to repaint a slot's label/icon/state.
+ * - [ensureAllEnabled] runs at app start so every slot is always pickable.
  *
- * `TileService`s can't be removed from the panel programmatically, which is why deletion only
- * clears the *config* (making the slot render `STATE_UNAVAILABLE`) rather than `setComponentEnabled
- * (false)` — the tile the user already dragged in stays where it is, just grey, exactly like
- * aShellYou.
+ * Tiles can't be removed programmatically, so deleting only clears the config — the tile already on
+ * the panel stays where it is, just grey.
  */
 object TileComponentManager {
 
@@ -45,6 +36,9 @@ object TileComponentManager {
             CustomTile09Service::class,
             CustomTile10Service::class,
         )
+
+    fun componentNames(context: Context): List<ComponentName> =
+        tileServices.map { ComponentName(context.packageName, it.qualifiedName!!) }
 
     fun componentName(context: Context, slotIndex: Int): ComponentName =
         ComponentName(context.packageName, tileServices[slotIndex].qualifiedName!!)
@@ -63,29 +57,34 @@ object TileComponentManager {
         tileServices.indices.forEach { setComponentEnabled(context, it, true) }
     }
 
-    /**
-     * Fires the system "add this tile to Quick Settings?" dialog (API 33+). On 28-32 there is no
-     * system dialog to invoke, so the codepath simply doesn't exist there — the enabled component
-     * shows up in the QS editor instead, and the user adds it the same way they add any tile.
-     */
-    fun promptAddTile(context: Context, slotIndex: Int, label: CharSequence, iconResId: Int) {
-        if (slotIndex !in tileServices.indices) return
+    /** Fires the system add-to-panel dialog (API 33+) for any tile component. [onResult] carries the
+     *  result code — the caller uses it to refresh its in-panel state. */
+    fun promptAddTile(
+        context: Context,
+        component: ComponentName,
+        label: CharSequence,
+        iconResId: Int,
+        onResult: ((Int) -> Unit)? = null,
+    ) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
         try {
             val statusBarManager = context.getSystemService(StatusBarManager::class.java)
             val icon = Icon.createWithResource(context, iconResId)
             statusBarManager?.requestAddTileService(
-                componentName(context, slotIndex),
+                component,
                 label,
                 icon,
                 context.mainExecutor,
-            ) { _ ->
-                // Result callback left intentionally empty — the dialog result itself is
-                // impermanent and the tile repaints on next onStartListening either way.
-            }
+            ) { result -> onResult?.invoke(result) }
         } catch (@Suppress("UNUSED_PARAMETER") e: Exception) {
             // System managers can refuse; ignore — the tile still works via the QS editor.
         }
+    }
+
+    /** Slot-based convenience — re-uses the component overload. */
+    fun promptAddTile(context: Context, slotIndex: Int, label: CharSequence, iconResId: Int) {
+        if (slotIndex !in tileServices.indices) return
+        promptAddTile(context, componentName(context, slotIndex), label, iconResId)
     }
 
     fun refreshTile(context: Context, slotIndex: Int) {

@@ -13,15 +13,11 @@ import android.os.PowerManager
 import android.service.quicksettings.TileService
 import androidx.core.app.NotificationCompat
 import com.tooler.app.R
+import com.tooler.app.util.StatusNotifier
 
 /**
- * Holds a [PowerManager] wake lock for as long as it's alive — the only non-root way to keep the
- * screen on with no active foreground window (there's no modern "keep screen on globally" API;
- * FLAG_KEEP_SCREEN_ON only works on an activity's own window while it's in front). Runs as a
- * foreground service (rather than acquiring the lock straight from the TileService) so the process
- * isn't eligible for background-execution limits or the cached-app freezer while the lock is held —
- * a bare WakeLock with no foreground service backing it can still get torn down by the OS shortly
- * after the owning component stops being active.
+ * Holds a wake lock for as long as it's alive — the only non-root way to keep the screen on with
+ * no active window. Runs as a foreground service so the OS won't tear the lock down while it's held.
  */
 class KeepAwakeService : Service() {
 
@@ -35,6 +31,7 @@ class KeepAwakeService : Service() {
         startForeground(NOTIFICATION_ID, buildNotification())
         acquireWakeLock()
         requestTileRefresh()
+        StatusNotifier.notifyChanged()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -48,6 +45,7 @@ class KeepAwakeService : Service() {
         releaseWakeLock()
         isRunning = false
         requestTileRefresh()
+        StatusNotifier.notifyChanged()
         super.onDestroy()
     }
 
@@ -80,11 +78,8 @@ class KeepAwakeService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Screen kept on")
-            // Small icon doubles as the status-bar slip-on: a white silhouette of the same
-            // Material Symbols "visibility" (open eye) glyph the tile and MainActivity use, so the
-            // active wake lock is unmistakable in the status bar. The system renders only this
-            // drawable's alpha channel.
+            .setContentTitle("Keeping Screen On")
+            // The eye glyph doubles as the status-bar sliver; the system renders its alpha only.
             .setSmallIcon(R.drawable.ic_keep_screen_on)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)

@@ -71,6 +71,18 @@
             android:label="@string/qs_tiles_activity_title"
             android:theme="@style/Theme.Tooler" />
 
+        <activity
+            android:name=".customtiles.TileEditorActivity"
+            android:exported="false"
+            android:label="@string/tile_editor_activity_title"
+            android:theme="@style/Theme.Tooler" />
+
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:label="@string/settings_activity_title"
+            android:theme="@style/Theme.Tooler" />
+
         <!-- Quick Settings tiles: android:permission=BIND_QUICK_SETTINGS_TILE is what makes these
              safe to export — only System UI holds that permission, so nothing else can bind them.
              TOGGLEABLE_TILE tells System UI this tile's tap is a toggle, so it animates the
@@ -139,20 +151,6 @@
             android:exported="true"
             android:icon="@drawable/ic_dns_off"
             android:label="@string/tile_private_dns"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
-            <intent-filter>
-                <action android:name="android.service.quicksettings.action.QS_TILE" />
-            </intent-filter>
-            <meta-data
-                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
-                android:value="true" />
-        </service>
-
-        <service
-            android:name=".tiles.LockedQsTileService"
-            android:exported="true"
-            android:icon="@drawable/ic_locked_qs"
-            android:label="@string/tile_locked_qs"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />

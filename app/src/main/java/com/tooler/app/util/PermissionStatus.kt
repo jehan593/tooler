@@ -24,23 +24,14 @@ fun hasNotificationPolicyAccess(context: Context): Boolean {
     return manager.isNotificationPolicyAccessGranted
 }
 
-/**
- * Required to write the charging-optimization Settings.Secure keys (see ChargeOptimization.kt).
- * Unlike every other permission this app checks, there is no Settings screen that grants this one
- * — it can only be flipped via `pm grant`, which is what [grantWriteSecureSettings] runs as the
- * Shizuku user (the exact command a computer's `adb shell pm grant` would issue).
- */
+/** Required to write the charging/DNS settings keys. No Settings screen grants this — only `pm
+ *  grant` can, which is exactly what [grantWriteSecureSettings] runs as the Shizuku user. */
 fun hasWriteSecureSettings(context: Context): Boolean =
     ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_SECURE_SETTINGS) ==
         PackageManager.PERMISSION_GRANTED
 
-/**
- * Grants [hasWriteSecureSettings] through Shizuku — same effect as running
- * `adb shell pm grant <package> android.permission.WRITE_SECURE_SETTINGS` from a computer, so the
- * app can now ask for this without one. Returns whether the grant landed (re-read live, so a failed
- * or refused command yields false). Requires Shizuku to be running and this app granted shell access
- * — [ShizukuUtils.runCommandForResult] returns null in its absence.
- */
+/** Grants [hasWriteSecureSettings] through Shizuku — the `adb shell pm grant` command run without
+ *  a computer. Returns whether the grant landed (re-read live, so a refused command yields false). */
 fun grantWriteSecureSettings(context: Context): Boolean {
     val granted =
         ShizukuUtils.runCommandForResult(

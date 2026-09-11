@@ -2,13 +2,9 @@ package com.tooler.app.customtiles
 
 import com.tooler.app.R
 
-/**
- * The icon picker for user-created tiles. Every built-in tile in this app has its own bespoke
- * drawable; a *user-created* tile can't, so this offers a curated set of Material Symbols Rounded
- * glyphs (the same icon family as the rest of the app — see the comments on each `.xml`) the user
- * can pick from when creating a tile. [res] degrades to the default terminal glyph rather than ever
- * crashing on a stale stored id.
- */
+/** The icon picker for user-created tiles: a curated set of Material Symbols Rounded glyphs (the
+ *  same icon family as the rest of the app). [res] degrades to the terminal glyph so a stale stored
+ *  id never crashes. */
 object CustomTileIcons {
     data class Entry(val id: String, val label: String, val keywords: List<String>)
 

@@ -10,41 +10,23 @@ import rikka.shizuku.Shizuku
 import java.util.ArrayDeque
 
 /**
- * Thin wrapper over the Shizuku API for running privileged shell commands — modified from
- * essentials' `ShizukuUtils.kt` (MIT), trimmed to the subset Tooler needs (no root path, no
- * permission self-granting, no "stop Shizuku" plumbing).
- *
- * What Shizuku buys here: Lock Quick Settings needs to run `cmd statusbar send-disable-flag`
- * (see [StatusBarFlags]), and that command is only callable by someone holding the `STATUS_BAR`
- * permission — a platform/signature permission that, like `WRITE_SECURE_SETTINGS`, no normal app
- * can request. Unlike `WRITE_SECURE_SETTINGS` there's no `pm grant` back door either — signature
- * permissions can't be granted to ordinary apps at all, so shell access is the only route. Shizuku
- * is the standard way to get it without root: the Shizuku app (once started, via adb or root)
- * exposes the device shell's uid, and grants per-app permission to run commands as it. When granted
- * through adb, commands run as the shell user; through root, as root — either uid holds STATUS_BAR,
- * so the mechanism works the same way in both modes.
- *
- * The binder reference is cached exactly like essentials does it: the API only pushes a fresh
- * binder into `Shizuku.getBinder()` when the server (re)attaches to this process
- * (via `rikka.shizuku.ShizukuProvider`), so [ToolerApp] registers the received/dead listeners below
- * and this object re-reads/caches on demand rather than trusting a static that can go stale when
- * the Shizuku app is restarted. Every is-available/is-granted call is also a live check, never a
- * cached answer — same "read the system, don't trust memory" rule as the rest of this app.
- *
- * `moe.shizuku.server.IShizukuService` (the AIDL stub used for `newProcess`) ships inside
- * `dev.rikka.shizuku:api`'s transitive `dev.rikka.shizuku:aidl` dependency — see app/build.gradle.kts.
+ * Thin wrapper over Shizuku (the app that exposes the shell user's uid to non-root apps) for
+ * running privileged commands. Lock Quick Settings needs it for `cmd statusbar send-disable-flag`,
+ * which requires the `STATUS_BAR` permission — a signature permission with no `pm grant` back door,
+ * so shell access is the only route. The binder cache is refreshed from Shizuku's own listeners
+ * ([ToolerApp] registers them); every is-available/is-granted check is live, never cached.
  */
 object ShizukuUtils {
     private const val TAG = "ShizukuUtils"
 
     private var binder: IBinder? = null
 
-    // Bounds the amount of command output we ever retain (the offending line of a failed command is
-    // almost always near the end), so a chatty wrapper like `cmd statusbar` can't balloon memory.
+    // Bounds retained output (the offending line is almost always near the end) so a chatty
+    // command like `cmd statusbar` can't balloon memory.
     private const val MAX_TAIL_LINES = 40
     private const val MAX_TAIL_CHARS = 600
 
-    /** Request code for the shell-access grant dialog; only used to match results back to requests. */
+    /** Request code for the shell-access grant dialog. */
     const val REQUEST_CODE = 20231001
 
     private val binderReceivedListener =
@@ -96,8 +78,8 @@ object ShizukuUtils {
         }
     }
 
-    /** Shows the one-time "grant Tooler shell access?" dialog. Result arrives through an
-     *  `Shizuku.OnRequestPermissionResultListener` — MainActivity registers one to refresh its UI. */
+    /** Shows the one-time grant dialog. The result arrives through an
+     *  `Shizuku.OnRequestPermissionResultListener`; MainActivity registers one to refresh its UI. */
     fun requestPermission() {
         try {
             Shizuku.requestPermission(REQUEST_CODE)
@@ -117,8 +99,8 @@ object ShizukuUtils {
 
     /**
      * Runs [command] as the shell user, draining output and returning [CommandOutcome]. The command
-     * string has the same light sanitization as aShellYou's executor (`trim`, plus dropping a
-     * pasted `adb shell ` prefix) so users can paste an adb-style command verbatim into a tile.
+     * is lightly sanitized (`trim`, plus dropping a pasted `adb shell ` prefix) so users can paste
+     * an adb-style command verbatim.
      */
     fun runCommandForOutput(command: String): CommandOutcome {
         val cleanCommand = command.trim().removePrefix("adb ").removePrefix("shell ")
@@ -130,9 +112,8 @@ object ShizukuUtils {
             null
         } ?: return CommandOutcome(null, "")
 
-        // Standard java.lang.Process hygiene for the remote equivalent: read both streams on their
-        // own threads *before* waitFor, or a command emitting more than the OS pipe buffer blocks
-        // forever (process waiting on write, us waiting on the process).
+        // Read both streams on their own threads *before* waitFor, or a command emitting more than
+        // the OS pipe buffer blocks forever (process waiting on write, us waiting on the process).
         var stderr = emptyList<String>()
         var stdout = emptyList<String>()
         val exitCode = try {
@@ -173,19 +154,10 @@ object ShizukuUtils {
         return tail.toList()
     }
 
-    /**
-     * Runs [command] as the shell user and returns just its exit code — null if the command
-     * couldn't be run at all. Carries the same output-draining as [runCommandForOutput]; callers
-     * that only need to know whether the command was issued (like `StatusBarFlags`) use
-     * [runCommand] instead, which is exit-code-agnostic by design.
-     */
+    /** Runs [command] and returns just its exit code, or null if it couldn't run at all. */
     fun runCommandForResult(command: String): Int? = runCommandForOutput(command).exitCode
 
-    /**
-     * Runs [command] as the shell user without caring about its exit code — a started process is
-     * "success" for callers like [com.tooler.app.util.StatusBarFlags] that just need the command
-     * issued. Returns false only if the command couldn't be run at all (not bound, not granted,
-     * binder died mid-run).
-     */
+    /** Runs [command] without caring about its exit code — issuing it is enough for callers like
+     *  [com.tooler.app.util.StatusBarFlags]. False only if it couldn't be run at all. */
     fun runCommand(command: String): Boolean = runCommandForResult(command) != null
 }

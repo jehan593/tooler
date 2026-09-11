@@ -1,37 +1,31 @@
 package com.tooler.app.tiles
 
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Intent
 import android.graphics.drawable.Icon
 import android.os.Build
 import android.service.quicksettings.Tile
-import android.service.quicksettings.TileService
 import com.tooler.app.MainActivity
 import com.tooler.app.R
 import com.tooler.app.util.hasWriteSecureSettings
 import com.tooler.app.util.setSubtitleCompat
+import com.tooler.app.util.StatusNotifier
 
 /**
- * Toggles Private DNS Automatic <-> the hostname already saved on the device (`Off` moves to
- * `Auto` first, same as `Hostname` does — see `togglePrivateDnsMode()`'s doc) — see PrivateDns.kt
- * for what that reads/writes and why, unlike Battery Charge Optimization, it can read the live
- * mode back with no local prefs of its own. Same `WRITE_SECURE_SETTINGS` gate and "Setup needed"
- * fallback as [BatteryChargeTileService]. If there's no hostname saved yet to toggle into (the
- * "user not set" case — only reachable from `Auto`, since `Off`/`Hostname` never need one), tapping
- * opens the app instead of silently doing nothing — MainActivity's Private DNS card is where a
- * hostname can actually be typed in.
+ * Toggles Private DNS Automatic <-> the hostname saved on the device (Off moves to Auto first —
+ * see PrivateDns.kt). Unlike Battery Charge Optimization it can read the live mode back. Same
+ * WRITE_SECURE_SETTINGS gate as the Battery tile; with no hostname saved to toggle into, tapping
+ * opens the app where one can be typed.
  */
-class PrivateDnsTileService : TileService() {
-
-    override fun onStartListening() {
-        super.onStartListening()
-        refresh()
-    }
+class PrivateDnsTileService : BaseTileService() {
 
     override fun onClick() {
         super.onClick()
         if (hasWriteSecureSettings(this)) {
-            if (!togglePrivateDnsMode(this)) {
+            if (togglePrivateDnsMode(this)) {
+                StatusNotifier.notifyChanged()
+            } else {
                 openAppForSetup()
             }
         } else {
@@ -40,6 +34,7 @@ class PrivateDnsTileService : TileService() {
         refresh()
     }
 
+    @SuppressLint("StartActivityAndCollapseDeprecated")
     private fun openAppForSetup() {
         val intent = Intent(this, MainActivity::class.java)
         if (Build.VERSION.SDK_INT >= 34) {
@@ -51,7 +46,7 @@ class PrivateDnsTileService : TileService() {
         }
     }
 
-    private fun refresh() {
+    override fun refresh() {
         qsTile?.apply {
             if (!hasWriteSecureSettings(this@PrivateDnsTileService)) {
                 state = Tile.STATE_INACTIVE
