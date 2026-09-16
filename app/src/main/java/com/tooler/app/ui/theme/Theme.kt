@@ -10,11 +10,11 @@ import androidx.compose.runtime.Composable
 // role is filled explicitly; unset roles would fall back to Material's purple-tinted defaults.
 
 private val NordDarkColorScheme = darkColorScheme(
-    primary = nord8,
+    primary = nord9,
     onPrimary = nord0,
     primaryContainer = nord10,
     onPrimaryContainer = nord6,
-    secondary = nord7,
+    secondary = nord8,
     onSecondary = nord0,
     secondaryContainer = nord2,
     onSecondaryContainer = nord6,
@@ -28,7 +28,7 @@ private val NordDarkColorScheme = darkColorScheme(
     onSurface = nord4,
     surfaceVariant = nord2,
     onSurfaceVariant = nord4,
-    surfaceTint = nord8,
+    surfaceTint = nord9,
     surfaceDim = nord0,
     surfaceBright = nord2,
     surfaceContainerLowest = nord0,
@@ -48,11 +48,11 @@ private val NordDarkColorScheme = darkColorScheme(
 )
 
 private val NordLightColorScheme = lightColorScheme(
-    primary = nord10,
-    onPrimary = nord6,
-    primaryContainer = nord8,
+    primary = nord9,
+    onPrimary = nord0,
+    primaryContainer = nord10,
     onPrimaryContainer = nord0,
-    secondary = nord7,
+    secondary = nord8,
     onSecondary = nord0,
     secondaryContainer = nord5,
     onSecondaryContainer = nord0,
@@ -66,7 +66,7 @@ private val NordLightColorScheme = lightColorScheme(
     onSurface = nord1,
     surfaceVariant = nord4,
     onSurfaceVariant = nord1,
-    surfaceTint = nord10,
+    surfaceTint = nord9,
     surfaceDim = nord4,
     surfaceBright = nord6,
     surfaceContainerLowest = nord6,

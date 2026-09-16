@@ -1,5 +1,6 @@
 package com.tooler.app.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,8 +9,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -34,16 +38,25 @@ fun PermissionCard(
     actions: List<TilePermissionAction> = emptyList(),
     modifier: Modifier = Modifier,
 ) {
-    Card(modifier = modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
+    val colorScheme = MaterialTheme.colorScheme
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = colorScheme.surface,
+            contentColor = colorScheme.onSurface
+        ),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     painter = painterResource(iconRes),
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = colorScheme.primary,
                     modifier = Modifier.size(24.dp)
                 )
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(8.dp))
                 Text(
                     title,
                     style = MaterialTheme.typography.titleMedium,
@@ -53,10 +66,13 @@ fun PermissionCard(
             Text(
                 description,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp)
             )
-            HorizontalDivider(modifier = Modifier.padding(top = 14.dp))
+            HorizontalDivider(
+                color = colorScheme.outline.copy(alpha = 0.45f),
+                modifier = Modifier.padding(top = 12.dp)
+            )
             Row(
                 modifier = Modifier.padding(top = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -67,7 +83,11 @@ fun PermissionCard(
                 )
                 Spacer(Modifier.weight(1f))
                 if (!granted && actionLabel != null && onAction != null) {
-                    OutlinedButton(onClick = onAction) {
+                    OutlinedButton(
+                        onClick = onAction,
+                        border = BorderStroke(1.dp, colorScheme.outline),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = colorScheme.primary)
+                    ) {
                         Text(actionLabel)
                     }
                 }
@@ -79,11 +99,19 @@ fun PermissionCard(
                 ) {
                     actions.forEach { action ->
                         if (action.primary) {
-                            Button(onClick = action.onClick, modifier = Modifier.fillMaxWidth()) {
+                            Button(
+                                onClick = action.onClick,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
                                 Text(action.label)
                             }
                         } else {
-                            OutlinedButton(onClick = action.onClick, modifier = Modifier.fillMaxWidth()) {
+                            OutlinedButton(
+                                onClick = action.onClick,
+                                border = BorderStroke(1.dp, colorScheme.outline),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = colorScheme.primary),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
                                 Text(action.label)
                             }
                         }

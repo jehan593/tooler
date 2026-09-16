@@ -13,8 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 
-/** A circular, theme-bordered icon button — the app's standard small round action (add/edit/delete).
- *  Border and glyph share one [color]; a disabled button greys both out so "already done" reads itself. */
+/** Compact icon action with a quiet Nord outline and an obvious disabled state. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BorderedIconButton(
@@ -31,9 +30,14 @@ fun BorderedIconButton(
         shape = CircleShape,
         border = BorderStroke(
             1.dp,
-            if (enabled) color else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+            if (enabled) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.outline.copy(alpha = 0.42f)
         ),
-        colors = IconButtonDefaults.outlinedIconButtonColors(contentColor = color),
+        colors = IconButtonDefaults.outlinedIconButtonColors(
+            contentColor = color,
+            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.42f),
+            containerColor = Color.Transparent,
+            disabledContainerColor = Color.Transparent
+        ),
         modifier = modifier
     ) {
         Icon(painterResource(iconRes), contentDescription = contentDescription)

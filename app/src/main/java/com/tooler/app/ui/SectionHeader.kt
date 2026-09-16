@@ -7,13 +7,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-/** A section label separating groups of cards, distinct from any individual card's title. */
+/** A compact section label separating groups of cards. */
 @Composable
 fun SectionHeader(title: String, modifier: Modifier = Modifier) {
     Text(
         title,
-        style = MaterialTheme.typography.titleMedium,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = modifier.padding(top = 12.dp, bottom = 4.dp)
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier.padding(top = 12.dp, bottom = 0.dp)
     )
 }

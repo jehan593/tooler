@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -49,26 +50,24 @@ fun FeatureCard(
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    val card = if (accented) {
-        CardDefaults.cardColors(
-            containerColor = colorScheme.secondaryContainer,
-            contentColor = colorScheme.onSecondaryContainer
-        )
-    } else {
-        CardDefaults.cardColors()
-    }
+    val card = CardDefaults.cardColors(
+        containerColor = if (accented) colorScheme.surfaceVariant else colorScheme.surface,
+        contentColor = colorScheme.onSurface
+    )
     Card(
         colors = card,
-        border = if (accented) BorderStroke(1.dp, colorScheme.secondary) else null,
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = if (accented) BorderStroke(1.dp, colorScheme.primaryContainer) else null,
         modifier = modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (iconRes != null) {
                     Icon(
                         painter = painterResource(iconRes),
                         contentDescription = null,
-                        tint = if (accented) colorScheme.secondary else colorScheme.primary,
+                        tint = colorScheme.primary,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(Modifier.width(8.dp))
@@ -78,14 +77,13 @@ fun FeatureCard(
             Text(
                 description,
                 style = MaterialTheme.typography.bodySmall,
-                color = if (accented) {
-                    colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
-                } else {
-                    colorScheme.onSurfaceVariant
-                },
+                color = colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp)
             )
-            HorizontalDivider(modifier = Modifier.padding(top = 14.dp))
+            HorizontalDivider(
+                color = colorScheme.outline.copy(alpha = 0.45f),
+                modifier = Modifier.padding(top = 12.dp)
+            )
             Row(
                 modifier = Modifier.padding(top = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -97,7 +95,9 @@ fun FeatureCard(
                 if (actionLabel != null && onAction != null) {
                     OutlinedButton(
                         onClick = onAction,
-                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
+                        border = BorderStroke(1.dp, colorScheme.outline),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = colorScheme.primary),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                     ) {
                         Text(actionLabel, style = MaterialTheme.typography.labelLarge)
                     }
@@ -110,7 +110,7 @@ fun FeatureCard(
     }
 }
 
-/** A small pill-shaped status label for a card's footer. */
+/** A small squared status label for a card's footer. */
 @Composable
 fun StatusChip(text: String, tone: StatusTone, modifier: Modifier = Modifier) {
     val dark = isSystemInDarkTheme()
@@ -121,14 +121,15 @@ fun StatusChip(text: String, tone: StatusTone, modifier: Modifier = Modifier) {
             StatusTone.NEUTRAL -> MaterialTheme.colorScheme.primary
         }
     Surface(
-        color = if (dark) color.copy(alpha = 0.16f) else color,
+        color = if (dark) color.copy(alpha = 0.14f) else color.copy(alpha = 0.22f),
         contentColor = if (dark) color else nord0,
-        shape = RoundedCornerShape(50)
+        shape = RoundedCornerShape(8.dp),
+        modifier = modifier
     ) {
         Text(
             text,
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
         )
     }
 }

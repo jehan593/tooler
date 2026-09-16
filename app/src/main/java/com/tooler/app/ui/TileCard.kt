@@ -1,5 +1,6 @@
 package com.tooler.app.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,7 +11,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -66,16 +69,25 @@ fun TileCard(
     actions: List<TileAction> = emptyList(),
     modifier: Modifier = Modifier,
 ) {
-    Card(modifier = modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
+    val colorScheme = MaterialTheme.colorScheme
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = colorScheme.surface,
+            contentColor = colorScheme.onSurface
+        ),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     painter = painterResource(iconRes),
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = colorScheme.primary,
                     modifier = Modifier.size(24.dp)
                 )
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(8.dp))
                 Text(
                     title,
                     style = MaterialTheme.typography.titleMedium,
@@ -85,13 +97,16 @@ fun TileCard(
             Text(
                 description,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp)
             )
             if (permission != null && !permission.granted) {
                 PermissionRow(permission)
             }
-            HorizontalDivider(modifier = Modifier.padding(top = 14.dp))
+            HorizontalDivider(
+                color = colorScheme.outline.copy(alpha = 0.45f),
+                modifier = Modifier.padding(top = 12.dp)
+            )
             Row(
                 modifier = Modifier.padding(top = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -101,9 +116,17 @@ fun TileCard(
                     Spacer(Modifier.width(12.dp))
                     actions.forEach { action ->
                         if (action.primary) {
-                            Button(onClick = action.onClick) { Text(action.label) }
+                            Button(onClick = action.onClick) {
+                                Text(action.label)
+                            }
                         } else {
-                            OutlinedButton(onClick = action.onClick) { Text(action.label) }
+                            OutlinedButton(
+                                onClick = action.onClick,
+                                border = BorderStroke(1.dp, colorScheme.outline),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = colorScheme.primary)
+                            ) {
+                                Text(action.label)
+                            }
                         }
                         Spacer(Modifier.width(8.dp))
                     }
@@ -165,11 +188,21 @@ fun PermissionRow(permission: TilePermission, modifier: Modifier = Modifier) {
                 ) {
                     permission.actions.forEach { action ->
                         if (action.primary) {
-                            Button(onClick = action.onClick, modifier = Modifier.fillMaxWidth()) {
+                            Button(
+                                onClick = action.onClick,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
                                 Text(action.label)
                             }
                         } else {
-                            OutlinedButton(onClick = action.onClick, modifier = Modifier.fillMaxWidth()) {
+                            OutlinedButton(
+                                onClick = action.onClick,
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.primary
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
                                 Text(action.label)
                             }
                         }
