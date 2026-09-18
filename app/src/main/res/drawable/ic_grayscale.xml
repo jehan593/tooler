@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Three tones remain recognizable when System UI applies its single-color tile tint. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFFFF" android:fillAlpha="0.35"
+        android:pathData="M3,5h5v14H3z" />
+    <path android:fillColor="#FFFFFFFF" android:fillAlpha="0.65"
+        android:pathData="M9.5,5h5v14h-5z" />
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M16,5h5v14h-5z" />
+</vector>

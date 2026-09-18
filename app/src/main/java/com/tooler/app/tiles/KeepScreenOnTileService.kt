@@ -10,8 +10,27 @@ import android.provider.Settings
 import android.service.quicksettings.Tile
 import androidx.core.content.ContextCompat
 import com.tooler.app.util.setSubtitleCompat
+import com.tooler.app.util.StatusNotifier
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 class KeepScreenOnTileService : BaseTileService() {
+
+    private var stateObserver: Job? = null
+
+    override fun startObserving() {
+        if (stateObserver != null) return
+        stateObserver = CoroutineScope(Dispatchers.Main.immediate).launch {
+            StatusNotifier.ticks.collect { refresh() }
+        }
+    }
+
+    override fun stopObserving() {
+        stateObserver?.cancel()
+        stateObserver = null
+    }
 
     override fun refresh() {
         applyState(KeepAwakeService.isRunning)

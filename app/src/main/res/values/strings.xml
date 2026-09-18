@@ -25,4 +25,5 @@
     <string name="qs_tiles_activity_title">Custom tiles</string>
     <string name="tile_editor_activity_title">Custom tile</string>
     <string name="settings_activity_title">Settings</string>
+    <string name="tile_grayscale">Grayscale</string>
 </resources>

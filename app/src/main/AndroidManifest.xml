@@ -85,10 +85,8 @@
 
         <!-- Quick Settings tiles: android:permission=BIND_QUICK_SETTINGS_TILE is what makes these
              safe to export — only System UI holds that permission, so nothing else can bind them.
-             TOGGLEABLE_TILE tells System UI this tile's tap is a toggle, so it animates the
-             press/state change immediately in its own process instead of waiting on a Binder
-             round-trip to ours before showing any feedback — shaves the visible response time
-             down to just whatever System UI itself takes, independent of our process's state. -->
+             TOGGLEABLE_TILE describes two-state switches for accessibility; it does not bypass
+             service startup or make system-setting writes instantaneous. -->
 
         <service
             android:name=".tiles.ScreenshotTileService"
@@ -99,9 +97,6 @@
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
-            <meta-data
-                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
-                android:value="true" />
         </service>
 
         <service
@@ -127,9 +122,6 @@
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
-            <meta-data
-                android:name="android.service.quicksettings.TOGGLEABLE_TILE"
-                android:value="true" />
         </service>
 
         <service
@@ -158,6 +150,18 @@
             <meta-data
                 android:name="android.service.quicksettings.TOGGLEABLE_TILE"
                 android:value="true" />
+        </service>
+
+        <service
+            android:name=".tiles.GrayscaleTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_grayscale"
+            android:label="@string/tile_grayscale"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+            <meta-data android:name="android.service.quicksettings.TOGGLEABLE_TILE" android:value="true" />
         </service>
 
         <!-- The ten custom-tile slots (customtiles/). These differ from the built-in tiles above
@@ -291,16 +295,6 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Holds the screen on while the user has the Keep Screen On tile toggled active" />
         </service>
-
-        <!-- Manifest-registered (not dynamic) so the volume tile refreshes even while the app
-             process isn't otherwise running — see RingerModeChangeReceiver's class doc. -->
-        <receiver
-            android:name=".tiles.RingerModeChangeReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.media.RINGER_MODE_CHANGED" />
-            </intent-filter>
-        </receiver>
 
         <!-- Home-screen launcher shortcut (not an AppWidget) — see LockScreenShortcutActivity's
              class doc. Theme.NoDisplay + exported so the launcher's shortcut/widget picker can

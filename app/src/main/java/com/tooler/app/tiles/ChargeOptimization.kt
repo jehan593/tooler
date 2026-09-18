@@ -11,7 +11,8 @@ import android.provider.Settings
  *
  * The mode can be **written but not read back**: reading throws `SecurityException` for any
  * non-system app on Android 12+ (confirmed on a real device), and `WRITE_SECURE_SETTINGS` doesn't
- * exempt reads. So [ChargingModePrefs] remembers the last mode this app wrote — pure OS-forced
+ * exempt reads. With Shizuku available we can read as shell; otherwise [ChargingModePrefs]
+ * remembers the last mode this app wrote — pure OS-forced
  * persistence; if the mode is changed from Settings directly, this goes stale until the next tap.
  */
 private const val KEY_ADAPTIVE_CHARGING = "adaptive_charging_enabled"
@@ -39,6 +40,27 @@ private object ChargingModePrefs {
 /** The last mode this app set — can't be a live read (see the file doc). */
 fun lastKnownChargingMode(context: Context): ChargingMode = ChargingModePrefs.read(context)
 
+
+/** Read live on a worker; Android may restrict direct reads even with WRITE_SECURE_SETTINGS. */
+fun syncChargingMode(context: Context): ChargingMode {
+    fun read(key: String): Int? = try {
+        Settings.Secure.getString(context.contentResolver, key)?.toIntOrNull()
+    } catch (_: SecurityException) {
+        val result = com.tooler.app.util.ShizukuUtils.runCommandForOutput("settings get secure $key")
+        if (result.exitCode == 0) result.errorOutput.trim().toIntOrNull() else null
+    }
+    val optimization = read(KEY_CHARGE_OPTIMIZATION)
+    val adaptive = if (optimization == 1) 0 else read(KEY_ADAPTIVE_CHARGING)
+    val live = when {
+        optimization == 1 -> ChargingMode.LIMIT_80
+        adaptive == 1 -> ChargingMode.ADAPTIVE
+        optimization == 0 && adaptive == 0 -> ChargingMode.OFF
+        else -> null
+    }
+    if (live != null && live != ChargingModePrefs.read(context)) ChargingModePrefs.write(context, live)
+    return live ?: ChargingModePrefs.read(context)
+}
+
 /**
  * Cycles Adaptive Charging <-> Limit to 80%, writing the two keys in the same per-transition order
  * as [TebbeUbben/ChargeQuickTile](https://github.com/TebbeUbben/ChargeQuickTile). Off is never a
@@ -47,7 +69,7 @@ fun lastKnownChargingMode(context: Context): ChargingMode = ChargingModePrefs.re
  */
 fun advanceChargingMode(context: Context): Boolean {
     val contentResolver: ContentResolver = context.contentResolver
-    val next = when (ChargingModePrefs.read(context)) {
+    val next = when (syncChargingMode(context)) {
         ChargingMode.OFF -> ChargingMode.ADAPTIVE
         ChargingMode.ADAPTIVE -> ChargingMode.LIMIT_80
         ChargingMode.LIMIT_80 -> ChargingMode.ADAPTIVE

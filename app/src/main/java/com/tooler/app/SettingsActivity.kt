@@ -32,6 +32,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.tooler.app.ui.rememberNotificationPermission
 import com.tooler.app.ui.PermissionCard
 import com.tooler.app.ui.TilePermissionAction
 import com.tooler.app.ui.theme.ToolerTheme
@@ -60,6 +61,7 @@ class SettingsActivity : ComponentActivity() {
 
         setContent {
             ToolerTheme {
+                val notificationPermission = rememberNotificationPermission()
                 var accessibilityEnabled by remember {
                     mutableStateOf(isAccessibilityServiceEnabled(this, ScreenshotAccessibilityService::class.java))
                 }
@@ -153,6 +155,15 @@ class SettingsActivity : ComponentActivity() {
                             }
                             item {
                                 PermissionCard(
+                                    title = notificationPermission.label,
+                                    iconRes = R.drawable.ic_keep_screen_on,
+                                    granted = notificationPermission.granted,
+                                    description = notificationPermission.description,
+                                    actions = if (notificationPermission.granted) emptyList() else notificationPermission.actions,
+                                )
+                            }
+                            item {
+                                PermissionCard(
                                     title = "Do Not Disturb access",
                                     iconRes = R.drawable.ic_volume_normal,
                                     granted = policyAccessGranted,
@@ -169,7 +180,7 @@ class SettingsActivity : ComponentActivity() {
                                     title = "WRITE_SECURE_SETTINGS",
                                     iconRes = R.drawable.ic_custom_settings,
                                     granted = writeSecureSettingsGranted,
-                                    description = "Lets Battery Charge Optimization and Private DNS change " +
+                                    description = "Lets Battery Charge Optimization, Grayscale, and Private DNS change " +
                                         "system settings. No Settings screen exists for it — grant it " +
                                         "with Shizuku here, or copy an adb command.",
                                     actions = if (writeSecureSettingsGranted) emptyList() else listOf(

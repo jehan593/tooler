@@ -14,6 +14,10 @@ import com.tooler.app.util.isAccessibilityServiceEnabled
 import com.tooler.app.util.setSubtitleCompat
 
 class ScreenshotTileService : BaseTileService() {
+    override val observedSettings = listOf(
+        Settings.Secure.getUriFor(Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES),
+        Settings.Secure.getUriFor(Settings.Secure.ACCESSIBILITY_ENABLED),
+    )
 
     override fun onClick() {
         super.onClick()

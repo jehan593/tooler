@@ -15,6 +15,7 @@ android {
         // silently no-op on older devices.
         minSdk = 28
         targetSdk = 35
+        testInstrumentationRunner = "com.tooler.app.tiles.DeviceChecks"
         // Overridable via -PappVersionCode=/-PappVersionName= — CI (.github/workflows/build-apk.yml)
         // passes github.run_number so every push gets a strictly increasing versionCode (required
         // for update checkers like Obtainium to see a new build) and its own tag/release rather
@@ -80,6 +81,7 @@ android {
 }
 
 dependencies {
+    testImplementation(libs.junit)
     // No Room, no DataStore, no DI framework: every tile reads live system state (AudioManager,
     // PowerManager, AccessibilityManager) directly instead of persisting its own copy of it — there
     // is nothing here worth a database or a repository layer.

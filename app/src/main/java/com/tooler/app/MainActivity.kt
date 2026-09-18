@@ -59,6 +59,9 @@ import com.tooler.app.tiles.PrivateDnsMode
 import com.tooler.app.tiles.PrivateDnsTileService
 import com.tooler.app.tiles.ScreenshotAccessibilityService
 import com.tooler.app.tiles.ScreenshotTileService
+import com.tooler.app.ui.rememberNotificationPermission
+import com.tooler.app.tiles.Grayscale
+import com.tooler.app.tiles.GrayscaleTileService
 import com.tooler.app.tiles.VolumeModeTileService
 import com.tooler.app.tiles.currentPrivateDnsHostname
 import com.tooler.app.tiles.currentPrivateDnsMode
@@ -101,6 +104,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             ToolerTheme {
+                val notificationPermission = rememberNotificationPermission()
                 val components = remember {
                     listOf(
                         ComponentName(this, ScreenshotTileService::class.java),
@@ -108,6 +112,7 @@ class MainActivity : ComponentActivity() {
                         ComponentName(this, VolumeModeTileService::class.java),
                         ComponentName(this, BatteryChargeTileService::class.java),
                         ComponentName(this, PrivateDnsTileService::class.java),
+                        ComponentName(this, GrayscaleTileService::class.java),
                     )
                 }
                 // Re-read on resume; snapshot backed so a panel change recomposes the cards.
@@ -126,6 +131,7 @@ class MainActivity : ComponentActivity() {
                 var ringerMode by remember { mutableStateOf(currentRingerModeLabel()) }
                 var writeSecureSettingsGranted by remember { mutableStateOf(hasWriteSecureSettings(this)) }
                 var chargingMode by remember { mutableStateOf(lastKnownChargingMode(this)) }
+                var grayscaleOn by remember { mutableStateOf(Grayscale.read(this).isGrayscale) }
                 var privateDnsMode by remember { mutableStateOf(currentPrivateDnsMode(this)) }
                 var privateDnsHostname by remember { mutableStateOf(currentPrivateDnsHostname(this)) }
                 var shizukuAvailable by remember { mutableStateOf(ShizukuUtils.isAvailable()) }
@@ -184,7 +190,7 @@ class MainActivity : ComponentActivity() {
                 val addWriteSecureSettingsPermission = TilePermission(
                     label = "WRITE_SECURE_SETTINGS",
                     description = "One-time shell grant for Battery Charge Optimization and Private " +
-                        "DNS. Do it through Shizuku, or copy an adb command.",
+                        "DNS, plus Grayscale. Do it through Shizuku, or copy an adb command.",
                     granted = writeSecureSettingsGranted,
                     actions = listOf(
                         TilePermissionAction(
@@ -231,6 +237,7 @@ class MainActivity : ComponentActivity() {
                     ringerMode = currentRingerModeLabel()
                     writeSecureSettingsGranted = hasWriteSecureSettings(this@MainActivity)
                     chargingMode = lastKnownChargingMode(this@MainActivity)
+                    grayscaleOn = Grayscale.read(this@MainActivity).isGrayscale
                     privateDnsMode = currentPrivateDnsMode(this@MainActivity)
                     privateDnsHostname = currentPrivateDnsHostname(this@MainActivity)
                     shizukuAvailable = ShizukuUtils.isAvailable()
@@ -330,6 +337,7 @@ description = "Take a screenshot from Quick Settings. The shade is hidden " +
                                     status = if (keepAwakeOn) "On" else "Off",
                                     statusTone = if (keepAwakeOn) StatusTone.SUCCESS else StatusTone.NEUTRAL,
                                     description = "Keep the screen awake until you turn it off.",
+                                    permission = notificationPermission,
                                     addIcon = R.drawable.ic_add,
                                     addDescription = "Add to panel",
                                     added = tileInPanel(components[1]),
@@ -493,6 +501,22 @@ description = "Take a screenshot from Quick Settings. The shade is hidden " +
                                         } else null
                                     )
                                 }
+                            }
+
+                            item {
+                                TileCard(
+                                    title = "Grayscale",
+                                    iconRes = R.drawable.ic_grayscale,
+                                    status = if (!writeSecureSettingsGranted) "Setup needed" else if (grayscaleOn) "On" else "Off",
+                                    description = "Temporarily use grayscale, then restore your previous color correction settings.",
+                                    permission = addWriteSecureSettingsPermission,
+                                    addIcon = R.drawable.ic_add,
+                                    addDescription = "Add to panel",
+                                    added = tileInPanel(components[5]),
+                                    onAdd = if (canPromptTileAdd(components[5])) {
+                                        { addTileToPanel(components[5], "Grayscale", R.drawable.ic_grayscale) }
+                                    } else null,
+                                )
                             }
 
                             item {

@@ -54,7 +54,15 @@ object TileComponentManager {
     }
 
     fun ensureAllEnabled(context: Context) {
-        tileServices.indices.forEach { setComponentEnabled(context, it, true) }
+        tileServices.indices.forEach { index ->
+            // Manifest-default components are already enabled; avoid ten redundant writes
+            // to PackageManager every time a tile starts a cold process.
+            val state = context.packageManager.getComponentEnabledSetting(componentName(context, index))
+            if (state != PackageManager.COMPONENT_ENABLED_STATE_DEFAULT &&
+                state != PackageManager.COMPONENT_ENABLED_STATE_ENABLED) {
+                setComponentEnabled(context, index, true)
+            }
+        }
     }
 
     /** Fires the system add-to-panel dialog (API 33+) for any tile component. [onResult] carries the

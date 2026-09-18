@@ -2,6 +2,9 @@ package com.tooler.app.tiles
 
 import android.annotation.SuppressLint
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
+import androidx.core.content.ContextCompat
 import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.Icon
@@ -16,6 +19,27 @@ import com.tooler.app.util.StatusNotifier
 
 class VolumeModeTileService : BaseTileService() {
 
+    private var observing = false
+    private val modeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            refresh()
+            StatusNotifier.notifyChanged()
+        }
+    }
+
+    override fun startObserving() {
+        if (observing) return
+        ContextCompat.registerReceiver(this, modeReceiver,
+            IntentFilter(AudioManager.RINGER_MODE_CHANGED_ACTION), ContextCompat.RECEIVER_EXPORTED)
+        observing = true
+    }
+
+    override fun stopObserving() {
+        if (!observing) return
+        unregisterReceiver(modeReceiver)
+        observing = false
+    }
+
     override fun onClick() {
         super.onClick()
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -24,12 +48,18 @@ class VolumeModeTileService : BaseTileService() {
             AudioManager.RINGER_MODE_VIBRATE -> AudioManager.RINGER_MODE_SILENT
             else -> AudioManager.RINGER_MODE_NORMAL
         }
-        // Only Silent needs Do Not Disturb access; Normal and Vibrate need nothing extra.
-        if (next == AudioManager.RINGER_MODE_SILENT && !hasNotificationPolicyAccess(this)) {
+        // Entering or leaving Silent can change DND and require policy access.
+        if ((next == AudioManager.RINGER_MODE_SILENT ||
+                audioManager.ringerMode == AudioManager.RINGER_MODE_SILENT) &&
+            !hasNotificationPolicyAccess(this)) {
             openNotificationPolicySettings()
         } else {
-            audioManager.ringerMode = next
-            StatusNotifier.notifyChanged()
+            try {
+                audioManager.ringerMode = next
+                StatusNotifier.notifyChanged()
+            } catch (_: SecurityException) {
+                openNotificationPolicySettings()
+            }
         }
         refresh()
     }

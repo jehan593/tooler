@@ -3,6 +3,10 @@ package com.tooler.app.tiles
 import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Intent
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
+import androidx.core.content.ContextCompat
 import android.graphics.drawable.Icon
 import android.os.Build
 import android.service.quicksettings.Tile
@@ -10,7 +14,6 @@ import com.tooler.app.MainActivity
 import com.tooler.app.R
 import com.tooler.app.util.hasWriteSecureSettings
 import com.tooler.app.util.setSubtitleCompat
-import com.tooler.app.util.StatusNotifier
 
 /**
  * Toggles Private DNS Automatic <-> the hostname saved on the device (Off moves to Auto first —
@@ -19,15 +22,36 @@ import com.tooler.app.util.StatusNotifier
  * opens the app where one can be typed.
  */
 class PrivateDnsTileService : BaseTileService() {
+    override val observedSettings = listOf(
+        android.provider.Settings.Global.getUriFor("private_dns_mode"),
+        android.provider.Settings.Global.getUriFor("private_dns_specifier"),
+    )
+
+    private var privateDnsReceiverRegistered = false
+    private val privateDnsReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) { refresh() }
+    }
+
+    override fun startObserving() {
+        if (privateDnsReceiverRegistered) return
+        val filter = IntentFilter("android.net.action.PRIVATE_DNS_MODE_CHANGED")
+        ContextCompat.registerReceiver(this, privateDnsReceiver, filter, ContextCompat.RECEIVER_EXPORTED)
+        privateDnsReceiverRegistered = true
+    }
+
+    override fun stopObserving() {
+        if (!privateDnsReceiverRegistered) return
+        unregisterReceiver(privateDnsReceiver)
+        privateDnsReceiverRegistered = false
+    }
 
     override fun onClick() {
         super.onClick()
         if (hasWriteSecureSettings(this)) {
-            if (togglePrivateDnsMode(this)) {
-                StatusNotifier.notifyChanged()
-            } else {
-                openAppForSetup()
+            changeSetting({ togglePrivateDnsMode(applicationContext) }) { success ->
+                if (!success) openAppForSetup()
             }
+            return
         } else {
             openAppForSetup()
         }
@@ -78,3 +102,4 @@ class PrivateDnsTileService : BaseTileService() {
         }
     }
 }
+

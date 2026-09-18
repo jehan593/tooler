@@ -1,12 +1,10 @@
 package com.tooler.app
 
 import android.app.Application
-import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
-import android.os.PowerManager
 import com.tooler.app.customtiles.TileComponentManager
 import com.tooler.app.tiles.LockedQsReceiver
 import com.tooler.app.util.ShizukuUtils
@@ -27,6 +25,7 @@ class ToolerApp : Application() {
         super.onCreate()
 
         // Keeps ShizukuUtils' binder cache in sync when the Shizuku server (re)attaches.
+        StatusBarFlags.initialize(this)
         ShizukuUtils.initialize()
 
         // Enables all ten custom-tile slot components so System UI offers them in the add-tile
@@ -36,6 +35,7 @@ class ToolerApp : Application() {
         val filter =
             IntentFilter().apply {
                 addAction(Intent.ACTION_SCREEN_OFF)
+                addAction(Intent.ACTION_SCREEN_ON)
                 addAction(Intent.ACTION_USER_PRESENT)
             }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -45,16 +45,10 @@ class ToolerApp : Application() {
             registerReceiver(lockedQsReceiver, filter)
         }
 
-        // If the process was killed while armed, the flag can linger in SystemUI with no live receiver
-        // to lift it. Clearing it here on restart (screen on and unlocked) unsticks the panel.
-        clearStaleDisableFlagIfUnlocked()
-    }
-
-    private fun clearStaleDisableFlagIfUnlocked() {
-        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-        val keyguardManager = getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
-        if (powerManager.isInteractive && !keyguardManager.isKeyguardLocked()) {
-            StatusBarFlags.clearAll()
+        lockedQsReceiver.reconcile(this)
+        // A startup clear may fail before Shizuku attaches. Retry using current lock state.
+        rikka.shizuku.Shizuku.addBinderReceivedListenerSticky {
+            android.os.Handler(mainLooper).post { lockedQsReceiver.reconcile(this) }
         }
     }
 
