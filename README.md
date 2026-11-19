@@ -4,21 +4,21 @@
 [![Latest release](https://img.shields.io/github/v/release/jehan593/tooler)](https://github.com/jehan593/tooler/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Quick Settings tiles that Android leaves out — no root needed. Nord palette, Martian Mono font, one
+Quick Settings tiles that Android leaves out ΓÇö no root needed. Nord palette, Martian Mono font, one
 home-screen shortcut too. No `INTERNET` permission, no sync, no database: tiles read the system's
 live state where Android allows it, with small local preferences for configuration and restoration.
 
-> FYI: this project is fully vibe-coded.
+> **FYI:** This project is fully vibe coded for my personal use and taste. It's shared publicly in case it's useful to you. Feel free to fork it and adapt it to your needs.
 
 ## Tiles
 
-- **Screenshot** — take one straight from Quick Settings. One-time Accessibility grant.
-- **Keep Screen On** — keep the screen awake until you turn it off.
-- **Volume Mode** — cycle Normal, Vibrate, and Silent.
-- **Battery Charge Optimization** — switch between Adaptive Charging and Limit to 80%. Pixel only.
-- **Private DNS** — switch between Automatic and a hostname you set.
-- **Grayscale** — temporarily use monochrome, then restore your previous color correction settings.
-- **Custom tiles** — ten tiles you make, each running a shell command via Shizuku.
+- **Screenshot** ΓÇö take one straight from Quick Settings. One-time Accessibility grant.
+- **Keep Screen On** ΓÇö keep the screen awake until you turn it off.
+- **Volume Mode** ΓÇö cycle Normal, Vibrate, and Silent.
+- **Battery Charge Optimization** ΓÇö switch between Adaptive Charging and Limit to 80%. Pixel only.
+- **Private DNS** ΓÇö switch between Automatic and a hostname you set.
+- **Grayscale** ΓÇö temporarily use monochrome, then restore your previous color correction settings.
+- **Custom tiles** ΓÇö ten tiles you make, each running a shell command via Shizuku.
 
 There's also a **Lock Quick Settings** toggle in the app (hide Quick Settings while the screen is
 locked, needs Shizuku), and a home-screen **Lock Screen** shortcut that locks the screen instantly.
@@ -35,15 +35,15 @@ mode Tooler saved, which can differ from changes made in Settings.
 
 A few tiles need one-time setup:
 
-- **Accessibility service** — Screenshot tile and Lock Screen shortcut.
-- **Notifications** — shows Keep Screen On's notification and its Turn off button.
-- **Do Not Disturb access** — needed for Volume Mode to enter or leave Silent.
-- **`WRITE_SECURE_SETTINGS`** — Battery Charge, Private DNS, and Grayscale. Grant it from the app with Shizuku
+- **Accessibility service** ΓÇö Screenshot tile and Lock Screen shortcut.
+- **Notifications** ΓÇö shows Keep Screen On's notification and its Turn off button.
+- **Do Not Disturb access** ΓÇö needed for Volume Mode to enter or leave Silent.
+- **`WRITE_SECURE_SETTINGS`** ΓÇö Battery Charge, Private DNS, and Grayscale. Grant it from the app with Shizuku
   running, or on a computer:
   ```sh
   adb shell pm grant com.tooler.app android.permission.WRITE_SECURE_SETTINGS
   ```
-- **Shizuku** — the Lock Quick Settings toggle and Custom tiles ([shizuku.rikka.app](https://shizuku.rikka.app/)).
+- **Shizuku** ΓÇö the Lock Quick Settings toggle and Custom tiles ([shizuku.rikka.app](https://shizuku.rikka.app/)).
 
 ## Build
 
@@ -80,5 +80,5 @@ Run local unit tests with `./gradlew testDebugUnitTest`.
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE). Martian Mono Nerd Font ships under the SIL Open Font License 1.1 —
+MIT ΓÇö see [`LICENSE`](LICENSE). Martian Mono Nerd Font ships under the SIL Open Font License 1.1 ΓÇö
 see [`MARTIAN_MONO_LICENSE.txt`](MARTIAN_MONO_LICENSE.txt).
